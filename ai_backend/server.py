@@ -43,6 +43,30 @@ class ForecastRequest(BaseModel):
     rolling_mean_7: float  # Average sales last 7 days
     rolling_mean_30: float # Average sales last 30 days
 
+class LeadTimeRequest(BaseModel):
+    date: str  # 'YYYY-MM-DD'
+    year: int
+    month: int
+    day: int
+    weekofyear: int
+    weekday: int
+    is_weekend: int
+    is_holiday: int
+    temperature: float
+    rain_mm: float
+    store_id: str
+    country: str
+    city: str
+    channel: str
+    latitude: float
+    longitude: float
+    sku_id: str
+    sku_name: str
+    category: str
+    subcategory: str
+    brand: str
+    supplier_id: str
+
 # --- Endpoints ---
 
 @app.on_event("startup")
@@ -76,7 +100,7 @@ async def trigger_training(background_tasks: BackgroundTasks):
     background_tasks.add_task(pipeline.run_training_pipeline, df)
     return {"status": "accepted", "message": "Training started in background."}
 
-@app.post("/predict")
+@app.post("/predict_unit_sold")
 def predict_demand(request: ForecastRequest):
     """
     Predicts demand for a specific horizon (1, 7, or 14 days).
@@ -100,5 +124,27 @@ def predict_demand(request: ForecastRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/predict_lead_time")
+def predict_lead_time(request: LeadTimeRequest):
+    """
+    Predicts lead time days for a specific SKU and supplier.
+    """
+    try:
+        # Convert request to dict
+        context_data = request.dict()
+
+        # Call the pipeline (assuming pipeline has a method for lead time)
+        prediction = pipeline.get_lead_time_forecast(context_data)
+
+        return {
+            "sku_id": request.sku_id,
+            "supplier_id": request.supplier_id,
+            "predicted_lead_time_days": round(prediction, 2),
+            "status": "success"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # uvicorn server:app --reload

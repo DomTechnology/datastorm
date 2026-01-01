@@ -201,6 +201,56 @@ class MultiHorizonForecaster:
 
         return max(0.0, float(prediction))
 
+class LeadTimePredictor:
+    """
+    Predicts lead time days based on various features.
+    """
+    def __init__(self):
+        self.model = None
+        self.encoders = {}
+        self.feature_cols = [
+            'year', 'month', 'day', 'weekofyear', 'weekday', 'is_weekend', 'is_holiday',
+            'temperature', 'rain_mm', 'store_id', 'country', 'city', 'channel',
+            'latitude', 'longitude', 'sku_id', 'sku_name', 'category', 'subcategory', 'brand', 'supplier_id'
+        ]
+        self.cat_cols = ['store_id', 'country', 'city', 'channel', 'sku_id', 'sku_name', 'category', 'subcategory', 'brand', 'supplier_id']
+
+    def _preprocess(self, df: pd.DataFrame, is_training: bool = True) -> pd.DataFrame:
+        data = df.copy()
+        X = data[self.feature_cols].copy()
+
+        for col in self.cat_cols:
+            X[col] = X[col].astype(str)
+            if is_training:
+                le = LabelEncoder()
+                X[col] = le.fit_transform(X[col])
+                self.encoders[col] = le
+            else:
+                if col in self.encoders:
+                    le = self.encoders[col]
+                    X[col] = X[col].map(lambda s: le.transform([s])[0] if s in le.classes_ else -1)
+        return X
+
+    def train(self, df: pd.DataFrame):
+        print(">>> Training Lead Time Predictor...")
+        X = self._preprocess(df, is_training=True)
+        y = df['lead_time_days']
+
+        self.model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
+        self.model.fit(X, y)
+        print(">>> Lead Time Predictor Trained.")
+
+    def predict(self, context: Dict) -> float:
+        if self.model is None:
+            raise Exception("Lead Time Predictor not trained.")
+
+        # Convert context to DataFrame
+        df_pred = pd.DataFrame([context])
+        X_pred = self._preprocess(df_pred, is_training=False)
+
+        prediction = self.model.predict(X_pred)[0]
+        return max(0.0, float(prediction))
+
 class DemandPipeline:
     """
     FACADE Pattern: Orchestrates the Data Imputation and Forecasting stages.
@@ -208,6 +258,7 @@ class DemandPipeline:
     def __init__(self):
         self.imputer = DataImputer()
         self.forecaster = MultiHorizonForecaster(horizons=[1, 7, 14])
+        self.lead_time_predictor = LeadTimePredictor()
         self.is_ready = False
 
     def run_training_pipeline(self, df: pd.DataFrame):
@@ -217,6 +268,9 @@ class DemandPipeline:
         # Step 2: Train forecast models on clean data
         self.forecaster.train(df_clean)
 
+        # Step 3: Train lead time predictor
+        self.lead_time_predictor.train(df)
+
         self.is_ready = True
         print(">>> Pipeline Training Finished Successfully.")
 
@@ -224,6 +278,11 @@ class DemandPipeline:
         if not self.is_ready:
             raise Exception("Pipeline not trained.")
         return self.forecaster.predict(context, horizon)
+
+    def get_lead_time_forecast(self, context: Dict):
+        if not self.is_ready:
+            raise Exception("Pipeline not trained.")
+        return self.lead_time_predictor.predict(context)
 
 # Singleton Instance
 pipeline = DemandPipeline()
