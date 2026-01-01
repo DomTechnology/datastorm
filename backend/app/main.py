@@ -309,7 +309,7 @@ def get_net_sales_by_location(
         ],
     }
 
-@app.post("/predict")
+@app.post("/predict_unit_sold")
 async def predict(
     request: dict,
     db: Session = Depends(get_db)
@@ -379,7 +379,7 @@ async def predict(
 
         # Send to AI server
         async with httpx.AsyncClient() as client:
-            response = await client.post("http://localhost:8000/predict", json=body)
+            response = await client.post("http://localhost:8001/predict_unit_sold", json=body)
             response.raise_for_status()
             return response.json()
 
@@ -387,5 +387,48 @@ async def predict(
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/predict_lead_time")
+async def predict_lead_time(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Build the body with all provided features
+        body = {
+            "date": request['date'],
+            "year": request['year'],
+            "month": request['month'],
+            "day": request['day'],
+            "weekofyear": request['weekofyear'],
+            "weekday": request['weekday'],
+            "is_weekend": request['is_weekend'],
+            "is_holiday": request['is_holiday'],
+            "temperature": request['temperature'],
+            "rain_mm": request['rain_mm'],
+            "store_id": request['store_id'],
+            "country": request['country'],
+            "city": request['city'],
+            "channel": request['channel'],
+            "latitude": request['latitude'],
+            "longitude": request['longitude'],
+            "sku_id": request['sku_id'],
+            "sku_name": request['sku_name'],
+            "category": request['category'],
+            "subcategory": request['subcategory'],
+            "brand": request['brand'],
+            "supplier_id": request['supplier_id']
+        }
+
+        # Send to AI server
+        async with httpx.AsyncClient() as client:
+            response = await client.post("http://localhost:8001/predict_lead_time", json=body)
+            response.raise_for_status()
+            return response.json()
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
