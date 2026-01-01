@@ -6,8 +6,6 @@ from .utils.db import get_db
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from datetime import datetime, timedelta
-import httpx
-from datetime import datetime, timedelta
 
 app = FastAPI(
     title="FMCG Sales Data API",
@@ -361,7 +359,7 @@ async def predict(
 
         # Build the body
         body = {
-            "horizon": request.get('horizon', 14),
+            "horizon": request.get('horizon', 7),
             "month": request['month'],
             "weekday": request['weekday'],
             "is_weekend": request['is_weekend'],
