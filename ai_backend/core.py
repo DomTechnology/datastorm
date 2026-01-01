@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from typing import Dict, Any, List, Optional
 import pickle
 import os
@@ -49,14 +50,29 @@ class DataImputer:
         train_mask = df['stock_out_flag'] == 0
         df_train = df[train_mask].copy()
 
-        X_train = self._preprocess(df_train, is_training=True)
-        y_train = df_train['units_sold']
+        # Split for evaluation
+        from sklearn.model_selection import train_test_split
+        train_df, val_df = train_test_split(df_train, test_size=0.2, random_state=42)
+
+        X_train = self._preprocess(train_df, is_training=True)
+        y_train = train_df['units_sold']
+        X_val = self._preprocess(val_df, is_training=False)
+        y_val = val_df['units_sold']
 
         # 2. Train XGBoost Imputer
         self.model = xgb.XGBRegressor(
             n_estimators=100, max_depth=6, learning_rate=0.1, n_jobs=-1
         )
         self.model.fit(X_train, y_train)
+
+        # Evaluate on validation set
+        y_pred_val = self.model.predict(X_val)
+        mse = mean_squared_error(y_val, y_pred_val)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_val, y_pred_val)
+        r2 = r2_score(y_val, y_pred_val)
+
+        print(f"      Imputation Validation - MSE: {mse:.4f}, RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
 
         # 3. Predict for Out-of-Stock rows
         impute_mask = df['stock_out_flag'] == 1
@@ -157,10 +173,23 @@ class MultiHorizonForecaster:
             print(f"    Training model for Horizon T+{h}...")
             X, y, feature_names = self._prepare_xy(df_rich, horizon=h)
 
+            # Split for validation
+            from sklearn.model_selection import train_test_split
+            X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
             model = xgb.XGBRegressor(
                 n_estimators=100, learning_rate=0.05, n_jobs=-1, objective='reg:squarederror'
             )
-            model.fit(X, y)
+            model.fit(X_train, y_train)
+
+            # Evaluate on validation set
+            y_pred_val = model.predict(X_val)
+            mse = mean_squared_error(y_val, y_pred_val)
+            rmse = np.sqrt(mse)
+            mae = mean_absolute_error(y_val, y_pred_val)
+            r2 = r2_score(y_val, y_pred_val)
+
+            print(f"      Horizon T+{h} - MSE: {mse:.4f}, RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
 
             # Save model and feature names for this horizon
             self.models[h] = {
@@ -236,8 +265,21 @@ class LeadTimePredictor:
         X = self._preprocess(df, is_training=True)
         y = df['lead_time_days']
 
+        # Split for validation
+        from sklearn.model_selection import train_test_split
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
         self.model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
-        self.model.fit(X, y)
+        self.model.fit(X_train, y_train)
+
+        # Evaluate on validation set
+        y_pred_val = self.model.predict(X_val)
+        mse = mean_squared_error(y_val, y_pred_val)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_val, y_pred_val)
+        r2 = r2_score(y_val, y_pred_val)
+
+        print(f"      Lead Time Validation - MSE: {mse:.4f}, RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
         print(">>> Lead Time Predictor Trained.")
 
     def predict(self, context: Dict) -> float:
