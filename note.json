@@ -1,0 +1,13 @@
+{'Forecast_H1': {'RMSE': np.float64(49.43), 'MAE': 36.27, 'WMAPE': '56.95%', 'MAPE': '1.00%'
+    }, 'Forecast_H7': {'RMSE': np.float64(48.89), 'MAE': 35.63, 'WMAPE': '55.52%', 'MAPE': '0.94%'
+    }, 'Forecast_H14': {'RMSE': np.float64(49.59), 'MAE': 36.04, 'WMAPE': '55.80%', 'MAPE': '0.94%'
+    }, 'Lead_Time': {'RMSE': np.float64(2.02), 'MAE': 1.63
+    }
+}
+
+{'Forecast_H1': {'RMSE': np.float64(48.1), 'MAE': 35.65, 'WMAPE': '55.98%', 'MAPE': '0.99%'
+    }, 'Forecast_H7': {'RMSE': np.float64(49.12), 'MAE': 36.07, 'WMAPE': '56.20%', 'MAPE': '0.96%'
+    }, 'Forecast_H14': {'RMSE': np.float64(49.67), 'MAE': 36.06, 'WMAPE': '55.83%', 'MAPE': '0.94%'
+    }, 'Lead_Time': {'RMSE': np.float64(2.02), 'MAE': 1.63
+    }
+}

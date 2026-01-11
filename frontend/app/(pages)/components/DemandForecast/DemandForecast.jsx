@@ -25,6 +25,7 @@ import {
   LineChart,
 } from "recharts";
 import { toast } from "sonner";
+import { SubTitle } from "../SubTitle";
 
 export const DemandForecast = () => {
   const [storeList, setStoreList] = useState([]);
@@ -254,206 +255,225 @@ export const DemandForecast = () => {
 
   return (
     <>
-      <Title text="Demand Forecast" className={"mt-10"} />
-      <div className="bg-white p-5 rounded-md shadow-md border border-gray-300 w-full mt-5">
-        <div className="flex items-center gap-5 text-[20px] mb-10">
-          <Filter />
-          <span>Filter</span>
+      <div className="flex flex-col overflow-y-auto relative">
+        <div className="w-full h-[20vh] overflow-hidden">
+          <img src="/background.jpg" className="w-full h-full object-top rounded-md" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="w-full">
-            <Label
-              htmlFor="store-select"
-              className="flex items-center gap-3 text-[16px] mb-2"
-            >
-              <Store size={14} />
-              Store ID
-            </Label>
-            <Select
-              value={selectedStore}
-              onValueChange={setSelectedStore}
-              className="mb-4"
-              id="store-select"
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select store" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {Array.isArray(storeList)
-                  ? storeList.map((store) => (
-                    <SelectItem key={store} value={store}>
-                      {store}
-                    </SelectItem>
-                  ))
-                  : null}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <Label
-              htmlFor="category-select"
-              className="flex items-center gap-3 text-[16px] mb-2"
-            >
-              <Grid2X2 size={14} />
-              Category
-            </Label>
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-              className="mb-4"
-              id="category-select"
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {Array.isArray(categoryList)
-                  ? categoryList.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))
-                  : null}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <Label
-              htmlFor="brand-select"
-              className="flex items-center gap-3 text-[16px] mb-2"
-            >
-              <ShoppingCart size={14} />
-              Brand
-            </Label>
-            <Select
-              value={selectedBrand}
-              onValueChange={setSelectedBrand}
-              className="mb-4"
-              id="brand-select"
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select brand" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {Array.isArray(brandList)
-                  ? brandList.map((brand) => (
-                    <SelectItem key={brand} value={brand}>
-                      {brand}
-                    </SelectItem>
-                  ))
-                  : null}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <Label
-              htmlFor="product-select"
-              className="flex items-center gap-3 text-[16px] mb-2"
-            >
-              <Package size={14} />
-              Product
-            </Label>
-            <Select
-              value={selectedProduct}
-              onValueChange={setSelectedProduct}
-              className="mb-4"
-              id="product-select"
-              disabled={productList.length === 0}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {Array.isArray(productList)
-                  ? productList.map((product, index) => (
-                    <SelectItem key={index} value={product.sku_id}>
-                      {product.sku_name}
-                    </SelectItem>
-                  ))
-                  : null}
-              </SelectContent>
-            </Select>
+        <div className="absolute top-10 w-full">
+          <div className="relative flex items-center text-white font-extrabold text-[55px] w-full">
+            <div className="absolute left-1/2 -translate-x-1/2 text-nowrap mt-20">
+              Demand Forecast
+            </div>
           </div>
         </div>
       </div>
-      <div className="bg-white p-5 shadow-md border border-gray-300 w-full h-full mt-10 rounded-md">
-        <div className="text-center text-xl mb-3">
-          Unit Sold of 12/2023 and 7 Days Prediction
+      <div>
+        <div className="bg-white p-5 rounded-md shadow-md border border-gray-300 w-full mt-5 mb-10">
+          <div className="flex items-center gap-5 text-[20px] mb-10">
+            <Filter />
+            <span>Filter</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="w-full">
+              <Label
+                htmlFor="store-select"
+                className="flex items-center gap-3 text-[16px] mb-2"
+              >
+                <Store size={14} />
+                Store ID
+              </Label>
+              <Select
+                value={selectedStore}
+                onValueChange={setSelectedStore}
+                className="mb-4"
+                id="store-select"
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select store" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {Array.isArray(storeList)
+                    ? storeList.map((store) => (
+                      <SelectItem key={store} value={store}>
+                        {store}
+                      </SelectItem>
+                    ))
+                    : null}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full">
+              <Label
+                htmlFor="category-select"
+                className="flex items-center gap-3 text-[16px] mb-2"
+              >
+                <Grid2X2 size={14} />
+                Category
+              </Label>
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+                className="mb-4"
+                id="category-select"
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {Array.isArray(categoryList)
+                    ? categoryList.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))
+                    : null}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full">
+              <Label
+                htmlFor="brand-select"
+                className="flex items-center gap-3 text-[16px] mb-2"
+              >
+                <ShoppingCart size={14} />
+                Brand
+              </Label>
+              <Select
+                value={selectedBrand}
+                onValueChange={setSelectedBrand}
+                className="mb-4"
+                id="brand-select"
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select brand" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {Array.isArray(brandList)
+                    ? brandList.map((brand) => (
+                      <SelectItem key={brand} value={brand}>
+                        {brand}
+                      </SelectItem>
+                    ))
+                    : null}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full">
+              <Label
+                htmlFor="product-select"
+                className="flex items-center gap-3 text-[16px] mb-2"
+              >
+                <Package size={14} />
+                Product
+              </Label>
+              <Select
+                value={selectedProduct}
+                onValueChange={setSelectedProduct}
+                className="mb-4"
+                id="product-select"
+                disabled={productList.length === 0}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {Array.isArray(productList)
+                    ? productList.map((product, index) => (
+                      <SelectItem key={index} value={product.sku_id}>
+                        {product.sku_name}
+                      </SelectItem>
+                    ))
+                    : null}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-        <div className="text-center text-[12px] mb-3">
-          <span className="font-bold">Store:</span> {selectedStore || "-"} - <span className="font-bold">Category:</span> {selectedCategory || "-"} - <span className="font-bold">Brand:</span> {selectedBrand || "-"} - <span className="font-bold">Product:</span> {selectedProduct || "-"}
+        <div className="mb-10" id="demand-forecast-results">
+          <SubTitle text="Demand Forecast Results" />
+          <div className="bg-white p-5 shadow-md border border-gray-300 w-full h-full rounded-md">
+            <div className="text-center text-xl mb-3">
+              Unit Sold of 12/2023 and 7 Days Prediction
+            </div>
+            <div className="text-center text-[12px] mb-3">
+              <span className="font-bold">Store:</span> {selectedStore || "-"} - <span className="font-bold">Category:</span> {selectedCategory || "-"} - <span className="font-bold">Brand:</span> {selectedBrand || "-"} - <span className="font-bold">Product:</span> {selectedProduct || "-"}
+            </div>
+
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={demandChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 12 }}
+                />
+
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 10 }}
+                  label={{
+                    value: "Lead Time (days)",
+                    angle: -90,
+                    position: "insideRight",
+                  }}
+                />
+
+                <Tooltip />
+                <Legend verticalAlign="bottom" align="center" />
+
+                <Bar
+                  dataKey="unit_sold"
+                  name="Actual"
+                  fill="#f59e0b"
+                  radius={[4, 4, 0, 0]}
+                />
+
+                <Bar
+                  dataKey="predicted_unit_sold"
+                  name="Predicted"
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
+        <div id="lead-time-prediction-results">
+          <SubTitle text="Lead Time Prediction Results" />
+          <div className="bg-white p-5 shadow-md border rounded-md">
+            <div className="text-center text-lg mb-3">
+              Lead Time Prediction (Days)
+            </div>
 
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={demandChartData}>
-            <CartesianGrid strokeDasharray="3 3" />
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={leadTimeChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
 
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis
-              yAxisId="left"
-              tick={{ fontSize: 12 }}
-            />
-
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={{ fontSize: 10 }}
-              label={{
-                value: "Lead Time (days)",
-                angle: -90,
-                position: "insideRight",
-              }}
-            />
-
-            <Tooltip />
-            <Legend verticalAlign="bottom" align="center" />
-
-            <Bar
-              dataKey="unit_sold"
-              name="Actual"
-              fill="#f59e0b"
-              radius={[4, 4, 0, 0]}
-            />
-
-            <Bar
-              dataKey="predicted_unit_sold"
-              name="Predicted"
-              fill="#3b82f6"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="bg-white p-5 mt-10 shadow-md border rounded-md">
-        <div className="text-center text-lg mb-3">
-          Lead Time Prediction (Days)
+                <Line
+                  type="monotone"
+                  dataKey="predicted_unit_sold"
+                  name="Lead Time (days)"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={leadTimeChartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Legend />
-
-            <Line
-              type="monotone"
-              dataKey="predicted_unit_sold"
-              name="Lead Time (days)"
-              stroke="#ef4444"
-              strokeWidth={2}
-              dot={{ r: 4 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
       </div>
     </>
   )

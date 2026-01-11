@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFilterStore } from "../../../../store/useFilterStore";
+import { useFilterStore } from "../../../store/useFilterStore";
 import {
   LineChart,
   Line,

@@ -345,11 +345,26 @@ async def predict(
     db: Session = Depends(get_db)
 ):
     try:
-        store_id = request['store_id']
-        sku_id = request['sku_id']
-        date_str = request['date']  # 'YYYY-MM-DD'
+        # Validate required fields
+        required_fields = [
+            'date', 'horizon', 'month', 'weekday', 'is_weekend', 'is_holiday',
+            'temperature', 'list_price', 'discount_pct', 'promo_flag',
+            'store_id', 'sku_id', 'category', 'brand', 'stock_opening'
+        ]
+
+        for field in required_fields:
+            if field not in request:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        # Validate horizon
+        if request['horizon'] not in [1, 7, 14]:
+            raise HTTPException(status_code=400, detail="Horizon must be 1, 7, or 14.")
+
+        # Parse date
+        date_str = request['date']
         date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        # Calculate lags
+
+        # Calculate lags from database
         lag_dates = {
             'lag_1': date - timedelta(days=1),
             'lag_7': date - timedelta(days=7),
@@ -359,16 +374,16 @@ async def predict(
         lags = {}
         for lag_name, lag_date in lag_dates.items():
             row = db.query(SalesFact.units_sold).filter(
-                SalesFact.store_id == store_id,
-                SalesFact.sku_id == sku_id,
+                SalesFact.store_id == request['store_id'],
+                SalesFact.sku_id == request['sku_id'],
                 SalesFact.date == lag_date
             ).first()
             lags[lag_name] = float(row.units_sold) if row else 0.0
         # Rolling mean 7: average from date-6 to date
         rolling_7_start = date - timedelta(days=6)
         rolling_7_rows = db.query(SalesFact.units_sold).filter(
-            SalesFact.store_id == store_id,
-            SalesFact.sku_id == sku_id,
+            SalesFact.store_id == request['store_id'],
+            SalesFact.sku_id == request['sku_id'],
             SalesFact.date >= rolling_7_start,
             SalesFact.date <= date
         ).all()
@@ -376,15 +391,16 @@ async def predict(
         # Rolling mean 30: from date-29 to date
         rolling_30_start = date - timedelta(days=29)
         rolling_30_rows = db.query(SalesFact.units_sold).filter(
-            SalesFact.store_id == store_id,
-            SalesFact.sku_id == sku_id,
+            SalesFact.store_id == request['store_id'],
+            SalesFact.sku_id == request['sku_id'],
             SalesFact.date >= rolling_30_start,
             SalesFact.date <= date
         ).all()
         rolling_mean_30 = sum(r.units_sold for r in rolling_30_rows) / len(rolling_30_rows) if rolling_30_rows else 0.0
-        # Build the body
+
+        # Build the request body for the AI backend API
         body = {
-            "horizon": request.get('horizon', 7),
+            "horizon": request['horizon'],
             "month": request['month'],
             "weekday": request['weekday'],
             "is_weekend": request['is_weekend'],
@@ -393,19 +409,29 @@ async def predict(
             "list_price": request['list_price'],
             "discount_pct": request['discount_pct'],
             "promo_flag": request['promo_flag'],
-            "store_id": store_id,
-            "sku_id": sku_id,
+            "store_id": request['store_id'],
+            "sku_id": request['sku_id'],
             "category": request['category'],
             "brand": request['brand'],
+            "stock_opening": request['stock_opening'],
             **lags,
             "rolling_mean_7": rolling_mean_7,
             "rolling_mean_30": rolling_mean_30
         }
         # Send to AI server
         async with httpx.AsyncClient() as client:
-            response = await client.post("http://localhost:8001/predict_unit_sold", json=body)
+            response = await client.post("http://localhost:8001/ai/predict_unit_sold", json=body)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # Return the result in the expected format
+            return {
+                "sku_id": result["sku_id"],
+                "predicted_demand": result["predicted_demand"],
+                "horizon_days": result["horizon_days"],
+                "shap_explanation": result["shap_explanation"],
+                "status": result["status"]
+            }
 
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
@@ -487,7 +513,19 @@ async def predict_lead_time(
     db: Session = Depends(get_db)
 ):
     try:
-        # Build the body with all provided features
+        # Validate required fields for lead time prediction
+        required_fields = [
+            'date', 'year', 'month', 'day', 'weekofyear', 'weekday', 'is_weekend',
+            'is_holiday', 'temperature', 'rain_mm', 'store_id', 'country', 'city',
+            'channel', 'latitude', 'longitude', 'sku_id', 'sku_name', 'category',
+            'subcategory', 'brand', 'supplier_id'
+        ]
+
+        for field in required_fields:
+            if field not in request:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        # Build the request body for the new AI backend API
         body = {
             "date": request['date'],
             "year": request['year'],
@@ -515,9 +553,18 @@ async def predict_lead_time(
 
         # Send to AI server
         async with httpx.AsyncClient() as client:
-            response = await client.post("http://localhost:8001/predict_lead_time", json=body)
+            response = await client.post("http://localhost:8001/ai/predict_lead_time", json=body)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # Return the result in the expected format
+            return {
+                "sku_id": result["sku_id"],
+                "supplier_id": result["supplier_id"],
+                "predicted_lead_time_days": result["predicted_lead_time_days"],
+                "shap_explanation": result["shap_explanation"],
+                "status": result["status"]
+            }
 
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")

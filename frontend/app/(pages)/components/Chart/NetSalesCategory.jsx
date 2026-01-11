@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useState } from "react";
-import { useFilterStore } from "../../../../store/useFilterStore";
+import { useFilterStore } from "../../../store/useFilterStore";
 import {
   Cell,
   Legend,
