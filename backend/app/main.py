@@ -225,26 +225,116 @@ def get_top_skus(
     month: str = Query("all", description="Filter by month, use 'all' for no filter"),
     limit: int = Query(20, description="Number of top SKUs to return"),
 ):
-    query = db.query(
+    # Subquery: sum units_sold per sku per store
+    sales_per_sku_store = db.query(
         SalesFact.sku_id,
-        SalesFact.sku_name,
-        func.sum(SalesFact.units_sold).label("units_sold")
+        SalesFact.store_id,
+        func.sum(SalesFact.units_sold).label("total_units")
     )
 
     if country != "all":
-        query = query.filter(SalesFact.country == country)
-
+        sales_per_sku_store = sales_per_sku_store.filter(SalesFact.country == country)
     if year != "all":
-        query = query.filter(func.extract("year", SalesFact.date) == int(year))
-
+        sales_per_sku_store = sales_per_sku_store.filter(func.extract("year", SalesFact.date) == int(year))
     if month != "all":
-        query = query.filter(func.extract("month", SalesFact.date) == int(month))
+        sales_per_sku_store = sales_per_sku_store.filter(func.extract("month", SalesFact.date) == int(month))
 
-    rows = query.group_by(SalesFact.sku_id, SalesFact.sku_name).order_by(func.sum(SalesFact.units_sold).desc()).limit(limit).all()
+    sales_per_sku_store = sales_per_sku_store.group_by(SalesFact.sku_id, SalesFact.store_id).subquery()
+
+    # Subquery: max units per sku
+    max_per_sku = db.query(
+        sales_per_sku_store.c.sku_id,
+        func.max(sales_per_sku_store.c.total_units).label("max_units")
+    ).group_by(sales_per_sku_store.c.sku_id).subquery()
+
+    # Subquery: top store per sku
+    top_store_per_sku = db.query(
+        sales_per_sku_store.c.sku_id,
+        sales_per_sku_store.c.store_id,
+        sales_per_sku_store.c.total_units.label("units_sold")
+    ).join(
+        max_per_sku,
+        (sales_per_sku_store.c.sku_id == max_per_sku.c.sku_id) &
+        (sales_per_sku_store.c.total_units == max_per_sku.c.max_units)
+    ).subquery()
+
+    # Subquery: get latest details per sku/store
+    latest_details = db.query(
+        SalesFact.sku_id,
+        SalesFact.sku_name,
+        SalesFact.store_id,
+        SalesFact.city,
+        SalesFact.category,
+        SalesFact.subcategory,
+        SalesFact.brand,
+        SalesFact.supplier_id,
+        SalesFact.stock_opening,
+        SalesFact.lead_time_days,
+        func.row_number().over(
+            partition_by=[SalesFact.sku_id, SalesFact.store_id],
+            order_by=SalesFact.date.desc()
+        ).label("rn")
+    )
+    
+    if country != "all":
+        latest_details = latest_details.filter(SalesFact.country == country)
+    if year != "all":
+        latest_details = latest_details.filter(func.extract("year", SalesFact.date) == int(year))
+    if month != "all":
+        latest_details = latest_details.filter(func.extract("month", SalesFact.date) == int(month))
+    
+    latest_details = latest_details.subquery()
+    
+    # Get latest record (rn=1)
+    details_ranked = db.query(
+        latest_details.c.sku_id,
+        latest_details.c.sku_name,
+        latest_details.c.store_id,
+        latest_details.c.city,
+        latest_details.c.category,
+        latest_details.c.subcategory,
+        latest_details.c.brand,
+        latest_details.c.supplier_id,
+        latest_details.c.stock_opening,
+        latest_details.c.lead_time_days
+    ).filter(latest_details.c.rn == 1).subquery()
+
+    # Final query: combine all
+    query = db.query(
+        top_store_per_sku.c.sku_id,
+        details_ranked.c.sku_name,
+        details_ranked.c.category,
+        details_ranked.c.subcategory,
+        details_ranked.c.brand,
+        details_ranked.c.supplier_id,
+        top_store_per_sku.c.store_id,
+        details_ranked.c.city,
+        top_store_per_sku.c.units_sold,
+        details_ranked.c.stock_opening,
+        details_ranked.c.lead_time_days
+    ).join(
+        details_ranked,
+        (top_store_per_sku.c.sku_id == details_ranked.c.sku_id) &
+        (top_store_per_sku.c.store_id == details_ranked.c.store_id)
+    ).order_by(top_store_per_sku.c.units_sold.desc()).limit(limit)
+
+    rows = query.all()
 
     return {
         "data": [
-            {"sku_id": r.sku_id, "sku_name": r.sku_name, "units_sold": int(r.units_sold)}
+            {
+                "sku_id": r.sku_id,
+                "sku_name": r.sku_name,
+                "category": r.category,
+                "subcategory": r.subcategory,
+                "brand": r.brand,
+                "supplier_id": r.supplier_id,
+                "store_id": r.store_id,
+                "city": r.city,
+                "units_sold": int(r.units_sold),
+                "stock_opening": int(r.stock_opening) if r.stock_opening else 0,
+                "lead_time_days": int(r.lead_time_days) if r.lead_time_days else 0
+            }
             for r in rows
         ]
     }

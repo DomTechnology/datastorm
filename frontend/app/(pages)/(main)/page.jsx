@@ -39,19 +39,32 @@ export default function MapPage() {
   const yearList = useFilterStore((state) => state.yearList);
 
   const [information, setInformation] = useState(null);
+  const [topProducts, setTopProducts] = useState([]);
+  const [stockAlerts, setStockAlerts] = useState([]);
   useEffect(() => {
     const fetchData = async () => {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/country`)
+      // await fetch(`${process.env.NEXT_PUBLIC_API_URL}/country`)
+      //   .then((res) => res.json())
+      //   .then((data) => {
+      //     setCountries(data.countries);
+      //   });
+      // await fetch(`${process.env.NEXT_PUBLIC_API_URL}/information`)
+      //   .then((res) => res.json())
+      //   .then((data) => {
+      //     setInformation(data);
+      //   });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sku/top?limit=10`)
         .then((res) => res.json())
         .then((data) => {
-          setCountries(data.countries);
+          setTopProducts(data.data);
+          console.log(data.data);
         });
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/information`)
-        .then((res) => res.json())
-        .then((data) => {
-          setInformation(data);
-        });
-    }
+      // await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product/stock_alerts`)
+      //   .then((res) => res.json())
+      //   .then((data) => {
+      //     setStockAlerts(data.data);
+      //   });
+    };
     fetchData();
   }, []);
 
@@ -76,66 +89,71 @@ export default function MapPage() {
   const years =
     startDate && endDate
       ? Array.from(
-        {
-          length:
-            new Date(endDate).getFullYear() -
-            new Date(startDate).getFullYear() +
-            1,
-        },
-        (_, i) => new Date(startDate).getFullYear() + i
-      )
+          {
+            length:
+              new Date(endDate).getFullYear() -
+              new Date(startDate).getFullYear() +
+              1,
+          },
+          (_, i) => new Date(startDate).getFullYear() + i
+        )
       : yearList;
 
   return (
     <>
       <div className="flex flex-col overflow-y-auto relative">
         <div className="w-full h-[40vh] overflow-hidden">
-          <img src="/background.jpg" className="w-full h-full object-top rounded-md" />
-        </div>
-        <div className="absolute top-10 w-full">
-          <div className="relative flex items-center text-white font-extrabold text-[55px] w-full">
-            <div className="absolute left-1/2 -translate-x-1/2 text-nowrap mt-20">
-              Sale Management Dashboard
-            </div>
-          </div>
+          <img
+            src="/background.jpg"
+            className="w-full h-full object-top rounded-md"
+          />
         </div>
       </div>
       <div className="container mx-auto relative">
-        <div className="-mt-50 z-10 absolute flex justify-center text-white w-full">
+        <div className="-mt-65 z-10 absolute flex justify-center text-white w-full">
           <div className="bg-[#ffffff3f] py-3 px-10 rounded-md border border-white shadow-md flex items-center justify-center gap-10">
             <div className="flex items-center gap-5 border-r border-r-white pr-20">
-              {/* <Warehouse size={50} /> */}
-              <div>
-                <div className="text-[20px] font-bold">Countries</div>
-                <div className="text-[30px] font-bold">{information ? information.number_of_countries : "..."}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-5 border-r border-r-white pr-20">
-              {/* <DollarSign size={50} /> */}
               <div>
                 <div className="text-[20px] font-bold">Total Net Sales</div>
-                <div className="text-[30px] font-bold">{information ? parseFloat(information.total_net_sales.toFixed(2)).toLocaleString() + " $" : "..."}</div>
+                <div className="text-[30px] font-bold">
+                  {information
+                    ? parseFloat(
+                        information.total_net_sales.toFixed(2)
+                      ).toLocaleString() + " $"
+                    : "..."}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-5 border-r border-r-white pr-20">
-              {/* <DollarSign size={50} /> */}
+              <div>
+                <div className="text-[20px] font-bold">Countries</div>
+                <div className="text-[30px] font-bold">
+                  {information ? information.number_of_countries : "..."}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-5 border-r border-r-white pr-20">
               <div>
                 <div className="text-[20px] font-bold">Stores</div>
-                <div className="text-[30px] font-bold">{information ? information.total_stores : "..."}</div>
+                <div className="text-[30px] font-bold">
+                  {information ? information.total_stores : "..."}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-5 border-r border-r-white pr-20">
-              {/* <Percent size={50} /> */}
               <div>
                 <div className="text-[20px] font-bold">Products</div>
-                <div className="text-[30px] font-bold">{information ? information.total_products : "..."}</div>
+                <div className="text-[30px] font-bold">
+                  {information ? information.total_products : "..."}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-5">
-              {/* <Warehouse size={50} /> */}
               <div>
                 <div className="text-[20px] font-bold">Days</div>
-                <div className="text-[30px] font-bold">{information ? information.number_of_days : "..."}</div>
+                <div className="text-[30px] font-bold">
+                  {information ? information.number_of_days : "..."}
+                </div>
               </div>
             </div>
           </div>
@@ -187,10 +205,10 @@ export default function MapPage() {
                     </SelectItem>
                     {Array.isArray(countries)
                       ? countries.map((country) => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))
+                          <SelectItem key={country} value={country}>
+                            {country}
+                          </SelectItem>
+                        ))
                       : null}
                   </SelectContent>
                 </Select>
@@ -217,10 +235,10 @@ export default function MapPage() {
                   <SelectContent>
                     {Array.isArray(yearList)
                       ? yearList.map((year) => (
-                        <SelectItem key={year} value={year}>
-                          {year}
-                        </SelectItem>
-                      ))
+                          <SelectItem key={year} value={year}>
+                            {year}
+                          </SelectItem>
+                        ))
                       : null}
                   </SelectContent>
                 </Select>
@@ -245,10 +263,10 @@ export default function MapPage() {
                   <SelectContent>
                     {Array.isArray(monthList)
                       ? monthList.map((month) => (
-                        <SelectItem key={month} value={month}>
-                          {month}
-                        </SelectItem>
-                      ))
+                          <SelectItem key={month} value={month}>
+                            {month}
+                          </SelectItem>
+                        ))
                       : null}
                   </SelectContent>
                 </Select>
@@ -256,7 +274,6 @@ export default function MapPage() {
             </div>
           </div>
           <div className="grid grid-cols-3 mt-5 gap-5">
-            {/* Row 1 */}
             <div className="col-span-2">
               <NetSales />
             </div>
@@ -264,11 +281,9 @@ export default function MapPage() {
               <NetSalesCategory />
             </div>
 
-            {/* Row 2 */}
             <div className="col-span-2">
               <UnitSold />
             </div>
-            <div className="col-span-1" />
           </div>
 
           <div className="mt-5 gap-4">
@@ -285,6 +300,115 @@ export default function MapPage() {
             </div>
           </div>
         </div>
+        <div className="mt-10" id="top-selling-sku-store">
+          <SubTitle text="Top Selling SKU-Store" />
+
+          <h3 className="text-xl font-bold mb-4"></h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left">No.</th>
+                  <th className="px-4 py-2 text-left">SKU ID</th>
+                  <th className="px-4 py-2 text-left">Product Name</th>
+                  <th className="px-4 py-2 text-left">Supplier ID</th>
+                  <th className="px-4 py-2 text-left">Store ID</th>
+                  <th className="px-4 py-2 text-left">City</th>
+                  <th className="px-4 py-2 text-left">Units Sold</th>
+                  <th className="px-4 py-2 text-left">Net Sales</th>
+                  <th className="px-4 py-2 text-left">Stock Opening</th>
+                  {/* <th className="px-4 py-2 text-left">Lead Time</th> */}
+                  <th className="px-4 py-2 text-left">Alert</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topProducts.map((product, index) => (
+                  <tr
+                    key={product.sku_id}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  >
+                    <td className="px-4 py-2">{index + 1}</td>
+                    <td className="px-4 py-2">
+                      {product.sku_id ? product.sku_id : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.sku_name ? product.sku_name : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.supplier_id ? product.supplier_id : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.store_id ? product.store_id : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.city ? product.city : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.units_sold ? product.units_sold : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.net_sales
+                        ? product.net_sales.toFixed(2)
+                        : "null"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {product.stock_opening ? product.stock_opening : "null"}
+                    </td>
+                    {/* <td className="px-4 py-2">
+                      {product.lead_time_days ? product.lead_time_days : "null"}
+                    </td> */}
+                    <td className="px-4 py-2">
+                      <span
+                        className={`px-4 py-1 ${
+                          index % 4 === 0 ? "bg-red-500" : "bg-green-500"
+                        } rounded-sm text-white`}
+                      >
+                        {index % 4 === 0 ? "Stock Out " : "Stock Out"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* <div className="mt-10" id="stock-alerts">
+          <SubTitle text="Stock Alerts" />
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left">SKU ID</th>
+                  <th className="px-4 py-2 text-left">Product Name</th>
+                  <th className="px-4 py-2 text-left">Store ID</th>
+                  <th className="px-4 py-2 text-left">Stock on Hand</th>
+                  <th className="px-4 py-2 text-left">Avg Daily Sales</th>
+                  <th className="px-4 py-2 text-left">Days Left</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stockAlerts.map((alert, index) => (
+                  <tr
+                    key={`${alert.sku_id}-${alert.store_id}`}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  >
+                    <td className="px-4 py-2">{alert.sku_id}</td>
+                    <td className="px-4 py-2">{alert.sku_name}</td>
+                    <td className="px-4 py-2">{alert.store_id}</td>
+                    <td className="px-4 py-2">{alert.stock_on_hand}</td>
+                    <td className="px-4 py-2">
+                      {alert.avg_daily_sales.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-2">
+                      {alert.days_left ? alert.days_left.toFixed(1) : "N/A"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div> */}
       </div>
     </>
   );

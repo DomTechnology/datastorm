@@ -46,3 +46,4 @@ class SalesFact(Base):
     supplier_id = Column(String(20))
     purchase_cost = Column(Numeric(10, 2))
     margin_pct = Column(Numeric(5, 3))
+    stock_opening = Column(Integer)
