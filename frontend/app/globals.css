@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 *{
-  font-family: "Roboto Condensed", sans-serif;
+  font-family: "Roboto", sans-serif;
 }
 
 .scroll-smooth{
