@@ -665,11 +665,13 @@ async def predict_lead_time(
 def get_sales_fact_detail(
     store_id: str = Query(..., description="Store ID"),
     sku_id: str = Query(..., description="SKU ID"),
+    date: str = Query(None, description="Date (not used currently)"),
     db: Session = Depends(get_db)
 ):
     row = db.query(SalesFact).filter(
         SalesFact.store_id == store_id,
-        SalesFact.sku_id == sku_id
+        SalesFact.sku_id == sku_id,
+        SalesFact.date == date
     ).first()
 
     if not row:
@@ -678,14 +680,28 @@ def get_sales_fact_detail(
     return {
         "store_id": row.store_id,
         "sku_id": row.sku_id,
-        "sku_name": row.sku_name,
-        "category": row.category,
-        "subcategory": row.subcategory,
-        "brand": row.brand,
+        "date": row.date,
         "country": row.country,
         "city": row.city,
         "channel": row.channel,
-        "latitude": row.latitude,
-        "longitude": row.longitude,
-        "supplier_id": row.supplier_id
+        "category": row.category,
+        "subcategory": row.subcategory,
+        "brand": row.brand,
+        "supplier_id": row.supplier_id,
+        "net_sales": float(row.net_sales) if row.net_sales is not None else 0.0,
+        "units_sold": int(row.units_sold) if row.units_sold is not None else 0,
+        "promo_flag": row.promo_flag,
+        "list_price": float(row.list_price) if row.list_price is not None else 0.0,
+        "discount_pct": float(row.discount_pct) if row.discount_pct is not None else 0.0,
+        "stock_opening": int(row.stock_opening) if row.stock_opening is not None else 0,
+        "stock_out_flag": row.stock_out_flag,
+        "lead_time_days": int(row.lead_time_days) if row.lead_time_days is not None else 0,
+        "is_holiday": row.is_holiday,
+        "is_weekend": row.is_weekend,
+        "temperature": float(row.temperature) if row.temperature is not None else 0.0,
+        "rain_mm": float(row.rain_mm) if row.rain_mm is not None else 0.0,
+        "latitude": float(row.latitude) if row.latitude is not None else 0.0,
+        "longitude": float(row.longitude) if row.longitude is not None else 0.0,
+        "weekday": row.weekday,
+        "month": row.month,
     }

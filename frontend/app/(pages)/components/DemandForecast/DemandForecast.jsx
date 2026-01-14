@@ -103,46 +103,46 @@ export const DemandForecast = () => {
       try {
         const predictions = [];
 
-        for (let i = 1; i <= 7; i++) {
-          const dateObj = new Date(2024, 0, i);
+        const detailRow = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/detail?store_id=${encodeURIComponent(selectedStore)}&sku_id=${encodeURIComponent(selectedProduct)}&date=2023-12-31`)
 
-          const payload = {
-            store_id: selectedStore,
-            sku_id: selectedProduct,
-            category: selectedCategory,
-            brand: selectedBrand,
+        const detailData = await detailRow.json();
 
-            date: dateObj.toISOString().slice(0, 10),
-            month: 1,
-            weekday: dateObj.getDay(),
-            is_weekend: [0, 6].includes(dateObj.getDay()) ? 1 : 0,
-            is_holiday: 0,
+        const payload = {
+          store_id: selectedStore,
+          sku_id: selectedProduct,
+          category: selectedCategory,
+          brand: selectedBrand,
 
-            // Fix data
-            list_price: 100.0,
-            temperature: 30.5,
-            discount_pct: 0.0,
-            promo_flag: 0,
-          };
+          date: detailData.date,
+          month: detailData.month,
+          weekday: detailData.weekday,
+          is_weekend: detailData.is_weekend,
+          is_holiday: detailData.is_holiday,
 
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/predict_unit_sold`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(payload),
-            }
-          );
+          // Fix data
+          list_price: detailData.list_price,
+          temperature: detailData.temperature,
+          discount_pct: detailData.discount_pct,
+          promo_flag: detailData.promo_flag,
+          horizon: 7,
+          stock_opening: detailData.stock_opening
+        };
 
-          const data = await res.json();
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/predict_unit_sold`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          }
+        );
 
-          predictions.push({
-            date: payload.date,
-            predicted_unit_sold: data.predicted_demand,
-          });
-        }
+        const data = await res.json();
+        console.log(data);
+        // predictions = data.predictions;
+
         toast.success("Demand forecast fetched successfully!", { id: toastId });
         setPredictedData(predictions);
 
@@ -154,87 +154,87 @@ export const DemandForecast = () => {
     fetchPredictedData();
   }, [selectedStore, selectedCategory, selectedBrand, selectedProduct]);
 
-  useEffect(() => {
-    const fetchPredictedLeadTimeData = async () => {
-      if (
-        !selectedStore ||
-        !selectedProduct ||
-        !selectedCategory ||
-        !selectedBrand
-      ) return;
+  // useEffect(() => {
+  //   const fetchPredictedLeadTimeData = async () => {
+  //     if (
+  //       !selectedStore ||
+  //       !selectedProduct ||
+  //       !selectedCategory ||
+  //       !selectedBrand
+  //     ) return;
 
-      const promise = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/detail?store_id=${encodeURIComponent(selectedStore)}&sku_id=${encodeURIComponent(selectedProduct)}&date=2024-01-01`)
+  //     const promise = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/detail?store_id=${encodeURIComponent(selectedStore)}&sku_id=${encodeURIComponent(selectedProduct)}&date=2024-01-01`)
 
-      const data = await promise.json();
+  //     const data = await promise.json();
 
-      try {
-        const predictions = [];
+  //     try {
+  //       const predictions = [];
 
-        for (let i = 1; i <= 7; i++) {
-          const dateObj = new Date(2024, 0, i);
-          const startOfYear = new Date(dateObj.getFullYear(), 0, 0);
-          const diff = dateObj - startOfYear;
-          const oneDay = 1000 * 60 * 60 * 24;
-          const weekOfYear = Math.max(
-            1,
-            Math.floor((diff / oneDay + startOfYear.getDay() + 1) / 7)
-          );
+  //       for (let i = 1; i <= 7; i++) {
+  //         const dateObj = new Date(2024, 0, i);
+  //         const startOfYear = new Date(dateObj.getFullYear(), 0, 0);
+  //         const diff = dateObj - startOfYear;
+  //         const oneDay = 1000 * 60 * 60 * 24;
+  //         const weekOfYear = Math.max(
+  //           1,
+  //           Math.floor((diff / oneDay + startOfYear.getDay() + 1) / 7)
+  //         );
 
-          const day = dateObj.getDate();
-          const month = dateObj.getMonth() + 1;
-          const year = dateObj.getFullYear();
-          const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+  //         const day = dateObj.getDate();
+  //         const month = dateObj.getMonth() + 1;
+  //         const year = dateObj.getFullYear();
+  //         const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
 
-          const payload = {
-            date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-            year,
-            month,
-            day,
-            weekofyear: weekOfYear,
-            weekday,
-            is_weekend: weekday === 6 || weekday === 7 ? 1 : 0,
-            is_holiday: 0,
-            temperature: 30.5,
-            rain_mm: 0.0,
-            store_id: selectedStore,
-            country: data.country,
-            city: data.city,
-            channel: data.channel,
-            latitude: data.latitude,
-            longitude: data.longitude,
-            sku_id: selectedProduct,
-            sku_name: data.sku_name,
-            category: selectedCategory,
-            subcategory: data.subcategory,
-            brand: selectedBrand,
-            supplier_id: data.supplier_id,
-          };
+  //         const payload = {
+  //           date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+  //           year,
+  //           month,
+  //           day,
+  //           weekofyear: weekOfYear,
+  //           weekday,
+  //           is_weekend: weekday === 6 || weekday === 7 ? 1 : 0,
+  //           is_holiday: 0,
+  //           temperature: 30.5,
+  //           rain_mm: 0.0,
+  //           store_id: selectedStore,
+  //           country: data.country,
+  //           city: data.city,
+  //           channel: data.channel,
+  //           latitude: data.latitude,
+  //           longitude: data.longitude,
+  //           sku_id: selectedProduct,
+  //           sku_name: data.sku_name,
+  //           category: selectedCategory,
+  //           subcategory: data.subcategory,
+  //           brand: selectedBrand,
+  //           supplier_id: data.supplier_id,
+  //         };
 
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/predict_lead_time`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(payload),
-            }
-          );
+  //         const res = await fetch(
+  //           `${process.env.NEXT_PUBLIC_API_URL}/predict_lead_time`,
+  //           {
+  //             method: "POST",
+  //             headers: {
+  //               "Content-Type": "application/json",
+  //             },
+  //             body: JSON.stringify(payload),
+  //           }
+  //         );
 
-          const data_lead_time = await res.json();
+  //         const data_lead_time = await res.json();
 
-          predictions.push({
-            date: payload.date,
-            predicted_unit_sold: data_lead_time.predicted_lead_time_days,
-          });
-        }
-        setPredictedLeadTime(predictions);
-      } catch (err) {
-        console.error("Prediction error:", err);
-      }
-    }
-    fetchPredictedLeadTimeData();
-  }, [predictedData])
+  //         predictions.push({
+  //           date: payload.date,
+  //           predicted_unit_sold: data_lead_time.predicted_lead_time_days,
+  //         });
+  //       }
+  //       setPredictedLeadTime(predictions);
+  //     } catch (err) {
+  //       console.error("Prediction error:", err);
+  //     }
+  //   }
+  //   fetchPredictedLeadTimeData();
+  // }, [predictedData])
 
   const demandChartData = [
     ...oldUnitSoldData.map(item => ({
