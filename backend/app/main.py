@@ -429,107 +429,6 @@ def get_net_sales_by_location(
         ],
     }
 
-@app.post("/predict_unit_sold")
-async def predict(
-    request: dict,
-    db: Session = Depends(get_db)
-):
-    try:
-        # Validate required fields
-        required_fields = [
-            'date', 'horizon', 'month', 'weekday', 'is_weekend', 'is_holiday',
-            'temperature', 'list_price', 'discount_pct', 'promo_flag',
-            'store_id', 'sku_id', 'category', 'brand', 'stock_opening'
-        ]
-
-        for field in required_fields:
-            if field not in request:
-                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
-
-        # Validate horizon
-        if request['horizon'] not in [1, 7, 14]:
-            raise HTTPException(status_code=400, detail="Horizon must be 1, 7, or 14.")
-
-        # Parse date
-        date_str = request['date']
-        date = datetime.strptime(date_str, '%Y-%m-%d').date()
-
-        # Calculate lags from database
-        lag_dates = {
-            'lag_1': date - timedelta(days=1),
-            'lag_7': date - timedelta(days=7),
-            'lag_14': date - timedelta(days=14),
-            'lag_28': date - timedelta(days=28),
-        }
-        lags = {}
-        for lag_name, lag_date in lag_dates.items():
-            row = db.query(SalesFact.units_sold).filter(
-                SalesFact.store_id == request['store_id'],
-                SalesFact.sku_id == request['sku_id'],
-                SalesFact.date == lag_date
-            ).first()
-            lags[lag_name] = float(row.units_sold) if row else 0.0
-        # Rolling mean 7: average from date-6 to date
-        rolling_7_start = date - timedelta(days=6)
-        rolling_7_rows = db.query(SalesFact.units_sold).filter(
-            SalesFact.store_id == request['store_id'],
-            SalesFact.sku_id == request['sku_id'],
-            SalesFact.date >= rolling_7_start,
-            SalesFact.date <= date
-        ).all()
-        rolling_mean_7 = sum(r.units_sold for r in rolling_7_rows) / len(rolling_7_rows) if rolling_7_rows else 0.0
-        # Rolling mean 30: from date-29 to date
-        rolling_30_start = date - timedelta(days=29)
-        rolling_30_rows = db.query(SalesFact.units_sold).filter(
-            SalesFact.store_id == request['store_id'],
-            SalesFact.sku_id == request['sku_id'],
-            SalesFact.date >= rolling_30_start,
-            SalesFact.date <= date
-        ).all()
-        rolling_mean_30 = sum(r.units_sold for r in rolling_30_rows) / len(rolling_30_rows) if rolling_30_rows else 0.0
-
-        # Build the request body for the AI backend API
-        body = {
-            "horizon": request['horizon'],
-            "month": request['month'],
-            "weekday": request['weekday'],
-            "is_weekend": request['is_weekend'],
-            "is_holiday": request['is_holiday'],
-            "temperature": request['temperature'],
-            "list_price": request['list_price'],
-            "discount_pct": request['discount_pct'],
-            "promo_flag": request['promo_flag'],
-            "store_id": request['store_id'],
-            "sku_id": request['sku_id'],
-            "category": request['category'],
-            "brand": request['brand'],
-            "stock_opening": request['stock_opening'],
-            **lags,
-            "rolling_mean_7": rolling_mean_7,
-            "rolling_mean_30": rolling_mean_30
-        }
-        # Send to AI server
-        async with httpx.AsyncClient() as client:
-            response = await client.post("http://localhost:8001/ai/predict_unit_sold", json=body)
-            response.raise_for_status()
-            result = response.json()
-
-            # Return the result in the expected format
-            return {
-                "sku_id": result["sku_id"],
-                "predicted_demand": result["predicted_demand"],
-                "horizon_days": result["horizon_days"],
-                "shap_explanation": result["shap_explanation"],
-                "status": result["status"]
-            }
-
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
 @app.get('/store/list')
 def get_store_list(
     db: Session = Depends(get_db)
@@ -597,67 +496,53 @@ def get_product_list(
         "data": result
     }
 
-@app.post("/predict_lead_time")
-async def predict_lead_time(
+@app.post("/predict_7days")
+async def predict_7days(
     request: dict,
     db: Session = Depends(get_db)
 ):
+    """
+    Predicts 7-day demand and lead time forecast for a specific store and SKU.
+    Forwards the request to AI backend /ai/predict_7days endpoint.
+    """
     try:
-        # Validate required fields for lead time prediction
+        # Validate required fields
         required_fields = [
-            'date', 'year', 'month', 'day', 'weekofyear', 'weekday', 'is_weekend',
-            'is_holiday', 'temperature', 'rain_mm', 'store_id', 'country', 'city',
-            'channel', 'latitude', 'longitude', 'sku_id', 'sku_name', 'category',
-            'subcategory', 'brand', 'supplier_id'
+            'start_date', 'store_id', 'sku_id', 'category', 'brand'
         ]
 
         for field in required_fields:
             if field not in request:
                 raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
 
-        # Build the request body for the new AI backend API
+        # Validate date format
+        date_str = request['start_date']
+        datetime.strptime(date_str, '%Y-%m-%d')
+
+        # Build the request body for the AI backend API
         body = {
-            "date": request['date'],
-            "year": request['year'],
-            "month": request['month'],
-            "day": request['day'],
-            "weekofyear": request['weekofyear'],
-            "weekday": request['weekday'],
-            "is_weekend": request['is_weekend'],
-            "is_holiday": request['is_holiday'],
-            "temperature": request['temperature'],
-            "rain_mm": request['rain_mm'],
+            "start_date": date_str,
             "store_id": request['store_id'],
-            "country": request['country'],
-            "city": request['city'],
-            "channel": request['channel'],
-            "latitude": request['latitude'],
-            "longitude": request['longitude'],
             "sku_id": request['sku_id'],
-            "sku_name": request['sku_name'],
             "category": request['category'],
-            "subcategory": request['subcategory'],
-            "brand": request['brand'],
-            "supplier_id": request['supplier_id']
+            "brand": request['brand']
         }
 
         # Send to AI server
         async with httpx.AsyncClient() as client:
-            response = await client.post("http://localhost:8001/ai/predict_lead_time", json=body)
+            response = await client.post("http://localhost:8001/ai/predict_7days", json=body, timeout=30.0)
             response.raise_for_status()
             result = response.json()
 
-            # Return the result in the expected format
-            return {
-                "sku_id": result["sku_id"],
-                "supplier_id": result["supplier_id"],
-                "predicted_lead_time_days": result["predicted_lead_time_days"],
-                "shap_explanation": result["shap_explanation"],
-                "status": result["status"]
-            }
+            # Return the result
+            return result
 
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=500, detail=f"AI backend error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

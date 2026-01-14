@@ -7,12 +7,14 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from typing import Dict, Any, List, Optional
 import logging
 import sys
+import pickle
+import os
 
 # --- Logging Configuration ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(message)s",
-    datefmt="%H:%M:%S",
+    format="%(asctime)s|%(levelname)s|%(message)s",
+    datefmt="%Y-%m-%d_%H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
@@ -68,7 +70,9 @@ class DataImputer:
         return X
 
     def train_and_impute(self, df: pd.DataFrame) -> pd.DataFrame:
-        logger.info(">>> [Stage 1] Censored Demand Imputation Started...")
+        logger.info("█"*60)
+        logger.info("STAGE1|DEMAND_IMPUTATION|START")
+        logger.info("█"*60)
         train_mask = df['stock_out_flag'] == 0
         df_train = df[train_mask].copy()
 
@@ -81,26 +85,28 @@ class DataImputer:
             objective='count:poisson', random_state=42
         )
         self.model.fit(X_train, y_train)
+        logger.info("STAGE1|IMPUTER_MODEL|TRAINED")
 
         impute_mask = df['stock_out_flag'] == 1
         df['adjusted_demand'] = df['units_sold'].astype(float) # Default
 
         if impute_mask.sum() > 0:
-            logger.info(f"    - Found {impute_mask.sum()} censored rows.")
+            logger.info(f"STAGE1|CENSORED_ROWS|FOUND|{impute_mask.sum()}")
             df_missing = df[impute_mask].copy()
             X_missing = self._preprocess(df_missing, is_training=False)
             
             predicted = self.model.predict(X_missing)
             current = df.loc[impute_mask, 'units_sold'].astype(float)
             df.loc[impute_mask, 'adjusted_demand'] = np.maximum(predicted, current)
+            logger.info(f"STAGE1|CENSORED_ROWS|IMPUTED|{impute_mask.sum()}")
         
-        logger.info(">>> [Stage 1] Completed.")
-        logger.info("-" * 40)
+        logger.info("STAGE1|DEMAND_IMPUTATION|COMPLETE")
+        logger.info("█"*60)
         return df
 
 class MultiHorizonForecaster:
-    """STAGE 2: DIRECT MULTI-STEP FORECASTING"""
-    def __init__(self, horizons: List[int] = [1, 7, 14]):
+    """STAGE 2: DIRECT MULTI-STEP FORECASTING - OPTIMIZED FOR HORIZON=1"""
+    def __init__(self, horizons: List[int] = [1]):
         self.horizons = horizons
         self.models = {} 
         self.encoders = {}
@@ -183,7 +189,9 @@ class MultiHorizonForecaster:
         return data[feature_cols], data['target'], feature_cols
 
     def train(self, df: pd.DataFrame, use_existing_features: bool = False):
-        logger.info(">>> [Stage 2] Forecasting Training...")
+        logger.info("█"*60)
+        logger.info("STAGE2|FORECASTING|START")
+        logger.info("█"*60)
         
         if use_existing_features:
             df_rich = df.copy()
@@ -199,17 +207,18 @@ class MultiHorizonForecaster:
                 objective='reg:squarederror', random_state=42
             )
             model.fit(X, y)
+            logger.info(f"STAGE2|HORIZON_{h}|MODEL|TRAINED")
             
             # Calculate Feature Importance
             importance = model.feature_importances_
             indices = np.argsort(importance)[-5:] # Top 5
             top_features = [feature_names[i] for i in indices]
-            logger.info(f"    - H+{h} Trained. Top Features: {top_features}")
+            logger.info(f"STAGE2|HORIZON_{h}|TOP_FEATURES|{','.join(top_features)}")
 
             self.models[h] = {'model': model, 'features': feature_names}
             
-        logger.info(">>> [Stage 2] Completed.")
-        logger.info("-" * 40)
+        logger.info("STAGE2|FORECASTING|COMPLETE")
+        logger.info("█"*60)
 
     def predict(self, context_data: Dict, horizon: int) -> Dict[str, Any]:
         if horizon not in self.models: raise ValueError(f"No model for H{horizon}")
@@ -268,6 +277,128 @@ class MultiHorizonForecaster:
         
         return y_true, y_pred
 
+class RecursiveMultiStepForecaster:
+    """STAGE 2B: RECURSIVE 7-DAY FORECASTING"""
+    def __init__(self, base_forecaster: MultiHorizonForecaster, raw_data: pd.DataFrame, lead_time_predictor=None):
+        self.forecaster = base_forecaster
+        self.raw_data = raw_data  # Full historical data for context
+        self.lead_time_predictor = lead_time_predictor
+        
+    def predict_next_7_days(self, start_date: str, store_id: str, sku_id: str, 
+                            category: str, brand: str) -> List[Dict]:
+        """
+        Recursively predict next 7 days by:
+        1. Getting last known sales data for lags
+        2. Predicting day 1
+        3. Using predicted day 1 to update lags for day 2, etc.
+        """
+        start_date = pd.to_datetime(start_date)
+        
+        # Get historical data for this store/sku
+        hist = self.raw_data[
+            (self.raw_data['store_id'] == store_id) & 
+            (self.raw_data['sku_id'] == sku_id)
+        ].copy().sort_values('date')
+        
+        if len(hist) == 0:
+            raise ValueError(f"No historical data for store={store_id}, sku={sku_id}")
+        
+        # Initialize with last known sales data
+        last_row = hist.iloc[-1].to_dict()
+        predictions = []
+        
+        # Keep track of recent sales for lag features
+        recent_sales = hist['adjusted_demand'].tail(30).tolist() if 'adjusted_demand' in hist.columns else hist['units_sold'].tail(30).tolist()
+        
+        for day_offset in range(1, 8):  # Days 1-7
+            pred_date = start_date + pd.Timedelta(days=day_offset-1)
+            
+            # Build context for this prediction
+            context = {
+                'month': pred_date.month,
+                'weekday': pred_date.weekday(),
+                'day': pred_date.day,
+                'is_weekend': 1 if pred_date.weekday() >= 5 else 0,
+                'is_holiday': 0,  # Default, could be enhanced with holiday calendar
+                'temperature': last_row.get('temperature', 20.0),
+                'list_price': last_row.get('list_price', 100.0),
+                'discount_pct': last_row.get('discount_pct', 0.0),
+                'promo_flag': last_row.get('promo_flag', 0),
+                'store_id': store_id,
+                'sku_id': sku_id,
+                'category': category,
+                'brand': brand,
+                'stock_opening': last_row.get('stock_opening', 100.0),
+                # Lag features
+                'lag_1': recent_sales[-1] if len(recent_sales) >= 1 else 0,
+                'lag_7': recent_sales[-7] if len(recent_sales) >= 7 else 0,
+                'lag_14': recent_sales[-14] if len(recent_sales) >= 14 else 0,
+                'lag_28': recent_sales[-28] if len(recent_sales) >= 28 else 0,
+                'rolling_mean_7': np.mean(recent_sales[-7:]) if len(recent_sales) >= 7 else 0,
+                'rolling_mean_30': np.mean(recent_sales[-30:]) if len(recent_sales) >= 30 else 0,
+            }
+            
+            # Predict using horizon=1 model (1-day ahead)
+            result = self.forecaster.predict(context, horizon=1)
+            predicted_units = result['prediction']
+            logger.info(f"FORECAST|DAY_{day_offset}|DATE={pred_date.strftime('%Y-%m-%d')}|UNITS_SOLD={predicted_units:.2f}")
+            
+            # Predict lead time if predictor is available
+            predicted_lead_time = None
+            lead_time_shap = None
+            if self.lead_time_predictor is not None:
+                try:
+                    lead_time_context = {
+                        'date': pred_date.strftime('%Y-%m-%d'),
+                        'year': pred_date.year,
+                        'month': pred_date.month,
+                        'day': pred_date.day,
+                        'weekofyear': pred_date.isocalendar()[1],
+                        'weekday': pred_date.weekday(),
+                        'is_weekend': 1 if pred_date.weekday() >= 5 else 0,
+                        'is_holiday': 0,
+                        'temperature': last_row.get('temperature', 20.0),
+                        'rain_mm': last_row.get('rain_mm', 0.0),
+                        'store_id': store_id,
+                        'country': last_row.get('country', 'Unknown'),
+                        'city': last_row.get('city', 'Unknown'),
+                        'channel': last_row.get('channel', 'Unknown'),
+                        'latitude': last_row.get('latitude', 0.0),
+                        'longitude': last_row.get('longitude', 0.0),
+                        'sku_id': sku_id,
+                        'sku_name': last_row.get('sku_name', sku_id),
+                        'category': category,
+                        'subcategory': last_row.get('subcategory', category),
+                        'brand': brand,
+                        'supplier_id': last_row.get('supplier_id', 'Unknown')
+                    }
+                    lead_time_result = self.lead_time_predictor.predict(lead_time_context)
+                    predicted_lead_time = round(lead_time_result['prediction'], 2)
+                    lead_time_shap = lead_time_result['shap_explanation']
+                    logger.info(f"LEAD_TIME|DAY_{day_offset}|DATE={pred_date.strftime('%Y-%m-%d')}|DAYS={predicted_lead_time}")
+                except Exception as e:
+                    logger.warning(f"LEAD_TIME|DAY_{day_offset}|ERROR|{str(e)}")
+            
+            prediction_data = {
+                'date': pred_date.strftime('%Y-%m-%d'),
+                'units_sold': round(predicted_units, 2),
+                'shap_explanation': result['shap_explanation']
+            }
+            
+            if predicted_lead_time is not None:
+                prediction_data['lead_time_days'] = predicted_lead_time
+                prediction_data['lead_time_shap_explanation'] = lead_time_shap
+            
+            predictions.append(prediction_data)
+            
+            # Update recent_sales with prediction for next iteration
+            recent_sales.append(predicted_units)
+            if len(recent_sales) > 30:
+                recent_sales.pop(0)
+        
+        return predictions
+
+
 class LeadTimePredictor:
     """STAGE 3: LEAD TIME PREDICTION"""
     def __init__(self):
@@ -298,13 +429,16 @@ class LeadTimePredictor:
         return X
 
     def train(self, df: pd.DataFrame):
-        logger.info(">>> [Stage 3] Lead Time Training...")
+        logger.info("█"*60)
+        logger.info("STAGE3|LEAD_TIME_PREDICTION|START")
+        logger.info("█"*60)
         X = self._preprocess(df, is_training=True)
         y = df['lead_time_days']
         self.model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42, n_jobs=-1)
         self.model.fit(X, y)
-        logger.info(">>> [Stage 3] Completed.")
-        logger.info("-" * 40)
+        logger.info("STAGE3|LEAD_TIME_MODEL|TRAINED")
+        logger.info("STAGE3|LEAD_TIME_PREDICTION|COMPLETE")
+        logger.info("█"*60)
 
     def predict(self, context: Dict) -> Dict[str, Any]:
         if self.model is None: raise Exception("Model not trained.")
@@ -335,31 +469,39 @@ class DemandPipeline:
     """Orchestrator"""
     def __init__(self):
         self.imputer = DataImputer()
-        self.forecaster = MultiHorizonForecaster(horizons=[1, 7, 14])
+        self.forecaster = MultiHorizonForecaster(horizons=[1])  # Only horizon=1 for 7-day recursive
         self.lead_time_predictor = LeadTimePredictor()
+        self.recursive_forecaster = None
+        self.raw_data = None
         self.is_ready = False
         self.latest_metrics = {}
 
     def run_training_pipeline(self, df: pd.DataFrame):
-        logger.info("=" * 50)
-        logger.info("  PIPELINE START")
-        logger.info("=" * 50)
+        logger.info("="*60)
+        logger.info("PIPELINE|START")
+        logger.info("="*60)
         
         df_imputed = self.imputer.train_and_impute(df)
         self._perform_evaluation(df_imputed)
         
-        logger.info(">>> [Production] Retraining on FULL dataset...")
+        logger.info("PIPELINE|PRODUCTION_RETRAINING")
         self.forecaster.train(df_imputed, use_existing_features=False) 
         self.lead_time_predictor.train(df)
         
+        # Initialize recursive forecaster with lead time predictor
+        self.raw_data = df_imputed
+        self.recursive_forecaster = RecursiveMultiStepForecaster(self.forecaster, df_imputed, self.lead_time_predictor)
+        
         self.is_ready = True
-        logger.info("=" * 50)
-        logger.info("  PIPELINE FINISHED")
-        logger.info("=" * 50)
+        logger.info("="*60)
+        logger.info("PIPELINE|COMPLETE")
+        logger.info("="*60)
         return self.latest_metrics
 
     def _perform_evaluation(self, df: pd.DataFrame):
-        logger.info(">>> [Evaluation] Last 28 Days Validation...")
+        logger.info("█"*60)
+        logger.info("EVALUATION|VALIDATION_28DAYS|START")
+        logger.info("█"*60)
         max_date = df['date'].max()
         cutoff_date = max_date - pd.Timedelta(days=28)
         
@@ -376,27 +518,26 @@ class DemandPipeline:
 
         metrics = {}
         
-        # A. Forecast Eval
+        # A. Forecast Eval (Only H+1 since we use recursive for 7-day)
         if len(test_rich) > 0:
-            logger.info("    - Forecast Models...")
-            temp_forecaster = MultiHorizonForecaster(horizons=[1, 7, 14])
+            logger.info("EVALUATION|FORECAST_MODEL_H1|TESTING")
+            temp_forecaster = MultiHorizonForecaster(horizons=[1])
             temp_forecaster.train(train_rich, use_existing_features=True)
             
-            for h in [1, 7, 14]:
-                y_true, y_pred = temp_forecaster.predict_batch_for_eval(test_rich, horizon=h, use_existing_features=True)
-                if y_true is not None and len(y_true) > 0:
-                    metrics[f"Forecast_H{h}"] = {
-                        "RMSE": round(calculate_rmse(y_true, y_pred), 2),
-                        "MAE": round(mean_absolute_error(y_true, y_pred), 2),
-                        "WMAPE": f"{calculate_wmape(y_true, y_pred):.2%}",
-                        "MAPE": f"{calculate_mape(y_true, y_pred):.2f}%"
-                    }
-                    mean_val = np.mean(y_true)
-                    logger.info(f"      [H+{h}] Mean Actual: {mean_val:.1f} | WMAPE: {metrics[f'Forecast_H{h}']['WMAPE']} | MAPE: {metrics[f'Forecast_H{h}']['MAPE']}")
+            y_true, y_pred = temp_forecaster.predict_batch_for_eval(test_rich, horizon=1, use_existing_features=True)
+            if y_true is not None and len(y_true) > 0:
+                metrics["Forecast_H1"] = {
+                    "RMSE": round(calculate_rmse(y_true, y_pred), 2),
+                    "MAE": round(mean_absolute_error(y_true, y_pred), 2),
+                    "WMAPE": f"{calculate_wmape(y_true, y_pred):.2%}",
+                    "MAPE": f"{calculate_mape(y_true, y_pred):.2f}%"
+                }
+                mean_val = np.mean(y_true)
+                logger.info(f"EVALUATION|FORECAST_H1|RMSE={metrics['Forecast_H1']['RMSE']}|MAE={metrics['Forecast_H1']['MAE']}|WMAPE={metrics['Forecast_H1']['WMAPE']}|MAPE={metrics['Forecast_H1']['MAPE']}")
 
         # B. Lead Time Eval
         if len(test_raw) > 0:
-            logger.info("    - Lead Time Predictor...")
+            logger.info("EVALUATION|LEAD_TIME_MODEL|TESTING")
             temp_lt = LeadTimePredictor()
             temp_lt.train(train_raw)
             y_lt_true, y_lt_pred = temp_lt.predict_batch_for_eval(test_raw)
@@ -405,17 +546,96 @@ class DemandPipeline:
                     "RMSE": round(calculate_rmse(y_lt_true, y_lt_pred), 2),
                     "MAE": round(mean_absolute_error(y_lt_true, y_lt_pred), 2)
                 }
-                logger.info(f"      [Lead Time] MAE: {metrics['Lead_Time']['MAE']}")
+                logger.info(f"EVALUATION|LEAD_TIME|RMSE={metrics['Lead_Time']['RMSE']}|MAE={metrics['Lead_Time']['MAE']}")
 
         self.latest_metrics = metrics
-        logger.info(">>> [Evaluation] Done.")
+        logger.info("EVALUATION|VALIDATION_28DAYS|COMPLETE")
+        logger.info("█"*60)
 
     def get_forecast(self, context, horizon):
         if not self.is_ready: raise Exception("Pipeline not trained.")
         return self.forecaster.predict(context, horizon)
 
+    def get_7day_forecast(self, start_date: str, store_id: str, sku_id: str, 
+                          category: str, brand: str):
+        if not self.is_ready: raise Exception("Pipeline not trained.")
+        if self.recursive_forecaster is None: raise Exception("Recursive forecaster not initialized.")
+        return self.recursive_forecaster.predict_next_7_days(start_date, store_id, sku_id, category, brand)
+
     def get_lead_time_forecast(self, context):
         if not self.is_ready: raise Exception("Pipeline not trained.")
         return self.lead_time_predictor.predict(context)
+    
+    def save_models(self, save_dir: str):
+        """Save all models to disk"""
+        logger.info(f"SAVE|MODELS|DIR={save_dir}|START")
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Save imputer
+        with open(os.path.join(save_dir, 'imputer.pkl'), 'wb') as f:
+            pickle.dump(self.imputer, f)
+        logger.info("SAVE|IMPUTER|COMPLETE")
+        
+        # Save forecaster
+        with open(os.path.join(save_dir, 'forecaster.pkl'), 'wb') as f:
+            pickle.dump(self.forecaster, f)
+        logger.info("SAVE|FORECASTER|COMPLETE")
+        
+        # Save lead time predictor
+        with open(os.path.join(save_dir, 'lead_time_predictor.pkl'), 'wb') as f:
+            pickle.dump(self.lead_time_predictor, f)
+        logger.info("SAVE|LEAD_TIME_PREDICTOR|COMPLETE")
+        
+        # Save raw data for recursive forecaster
+        if self.raw_data is not None:
+            self.raw_data.to_pickle(os.path.join(save_dir, 'raw_data.pkl'))
+            logger.info("SAVE|RAW_DATA|COMPLETE")
+        
+        # Save metadata
+        metadata = {
+            'is_ready': self.is_ready,
+            'latest_metrics': self.latest_metrics
+        }
+        with open(os.path.join(save_dir, 'metadata.pkl'), 'wb') as f:
+            pickle.dump(metadata, f)
+        logger.info("SAVE|METADATA|COMPLETE")
+        logger.info(f"SAVE|MODELS|DIR={save_dir}|COMPLETE")
+    
+    def load_models(self, load_dir: str):
+        """Load all models from disk"""
+        logger.info(f"LOAD|MODELS|DIR={load_dir}|START")
+        
+        # Load imputer
+        with open(os.path.join(load_dir, 'imputer.pkl'), 'rb') as f:
+            self.imputer = pickle.load(f)
+        logger.info("LOAD|IMPUTER|COMPLETE")
+        
+        # Load forecaster
+        with open(os.path.join(load_dir, 'forecaster.pkl'), 'rb') as f:
+            self.forecaster = pickle.load(f)
+        logger.info("LOAD|FORECASTER|COMPLETE")
+        
+        # Load lead time predictor
+        with open(os.path.join(load_dir, 'lead_time_predictor.pkl'), 'rb') as f:
+            self.lead_time_predictor = pickle.load(f)
+        logger.info("LOAD|LEAD_TIME_PREDICTOR|COMPLETE")
+        
+        # Load raw data
+        raw_data_path = os.path.join(load_dir, 'raw_data.pkl')
+        if os.path.exists(raw_data_path):
+            self.raw_data = pd.read_pickle(raw_data_path)
+            # Reinitialize recursive forecaster
+            self.recursive_forecaster = RecursiveMultiStepForecaster(
+                self.forecaster, self.raw_data, self.lead_time_predictor
+            )
+            logger.info("LOAD|RAW_DATA|COMPLETE")
+        
+        # Load metadata
+        with open(os.path.join(load_dir, 'metadata.pkl'), 'rb') as f:
+            metadata = pickle.load(f)
+            self.is_ready = metadata['is_ready']
+            self.latest_metrics = metadata['latest_metrics']
+        logger.info("LOAD|METADATA|COMPLETE")
+        logger.info(f"LOAD|MODELS|DIR={load_dir}|COMPLETE")
 
 pipeline = DemandPipeline()
