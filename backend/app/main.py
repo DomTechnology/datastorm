@@ -5,7 +5,9 @@ from .model.sales_fact import SalesFact
 from .utils.db import get_db
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime
+import os
+from google import genai
 
 app = FastAPI(
     title="FMCG Sales Data API",
@@ -589,4 +591,114 @@ def get_sales_fact_detail(
         "longitude": float(row.longitude) if row.longitude is not None else 0.0,
         "weekday": row.weekday,
         "month": row.month,
+    }
+
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+
+@app.post("/suggestion/sales_demand")
+async def suggestion(
+    request: dict
+):
+    data = request.get("forecast_data", "")
+    daily_demand_str = "\n".join(
+        f"{item.get('date', 'N/A')}: "
+        f"{round(item.get("predicted_unit_sold"), 2)} units"
+        for item in data
+    )
+
+    base_system_prompt = f"""
+    You are a smart and friendly Sales Demand Consulting Assistant of the DOM Team. 
+    You specialize in FMCG demand forecasting and inventory planning. 
+    Provide clear purchasing recommendations based on forecast data. 
+    Keep answers under 200 words. Use natural, professional English. 
+    Do not use any special formatting.
+    Do not mention you are an AI model.
+    Do not repeat the context back to the user or repeat your flow of thought.
+    Give suggestion for optimal sales demand planning and inventory management.
+    Do not use any markdown formatting.
+
+    This is the Forecast Data for 7 days of {request.get("sku_id", "")} at Store {request.get("store_id", "")}:
+    - Category: {request.get("category", "")}
+    - Brand: {request.get("brand", "")}
+    - Daily Forecasted Demand: {daily_demand_str}
+    """
+    
+    prompt = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "You are a helpful assistant that helps people find information about FMCG sales data."}
+                ]
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {"text": base_system_prompt}
+                ]
+            }
+        ]
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash", 
+        contents=prompt
+    )
+    return {
+        "type": "text",
+        "message": response.text
+    }
+
+@app.post("/suggestion/lead_time")
+async def suggestion(
+    request: dict
+):
+    data = request.get("forecast_data", "")
+    daily_lead_time_str = "\n".join(
+        f"{item.get('date', 'N/A')}: "
+        f"{round(item.get("predicted_unit_sold"), 2)} days"
+        for item in data
+    )
+
+    base_system_prompt = f"""
+    You are a smart and friendly Sales Demand Consulting Assistant of the DOM Team. 
+    You specialize in FMCG demand forecasting and inventory planning. 
+    Provide clear purchasing recommendations based on forecast data. 
+    Keep answers under 200 words. Use natural, professional English. 
+    Do not use any special formatting.
+    Do not mention you are an AI model.
+    Do not repeat the context back to the user or repeat your flow of thought.
+    Give suggestions to reduce lead time and improve supply chain efficiency.
+    Do not use any markdown formatting.
+
+    This is the Forecast Data for 7 days of {request.get("sku_id", "")} at Store {request.get("store_id", "")}:
+    - Category: {request.get("category", "")}
+    - Brand: {request.get("brand", "")}
+    - Daily Forecasted Lead Time: {daily_lead_time_str}
+    """
+    
+    prompt = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "You are a helpful assistant that helps people find information about FMCG sales data."}
+                ]
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {"text": base_system_prompt}
+                ]
+            }
+        ]
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash", 
+        contents=prompt
+    )
+    return {
+        "type": "text",
+        "message": response.text
     }
