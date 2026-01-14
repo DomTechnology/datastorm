@@ -1,29 +1,26 @@
-"use client"
+"use client";
 
-import { ChevronRight, ChevronDown } from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
+import { ChevronRight, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const Sider = () => {
-  const pathname = usePathname()
-  const isMainPage = pathname === "/"
-  const isForecasting = pathname.startsWith("/forecasting")
+  const pathname = usePathname();
+  const isMainPage = pathname === "/";
+  const isForecasting = pathname.startsWith("/forecasting");
 
   const scrollTo = (id, offset = 80) => {
-    const el = document.getElementById(id)
-    if (!el) return
+    const el = document.getElementById(id);
+    if (!el) return;
 
-    const y =
-      el.getBoundingClientRect().top +
-      window.pageYOffset -
-      offset
+    const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
 
     window.scrollTo({
       top: y,
       behavior: "smooth",
-    })
-  }
+    });
+  };
 
   const submenuVariants = {
     hidden: { height: 0, opacity: 0 },
@@ -37,12 +34,11 @@ export const Sider = () => {
       opacity: 0,
       transition: { duration: 0.2, ease: "easeIn" },
     },
-  }
+  };
 
   return (
     <div className="w-64 h-screen bg-[#313642] fixed left-0 top-0 z-50 text-white pt-20">
       <div className="flex flex-col gap-6 mt-10 px-5 text-gray-300">
-
         {/* ===== Net Sales ===== */}
         <div className="flex flex-col gap-2">
           <Link
@@ -74,6 +70,12 @@ export const Sider = () => {
                   className="text-left hover:text-white transition"
                 >
                   Sales Analysis
+                </button>
+                <button
+                  onClick={() => scrollTo("top-sku-store", 100)}
+                  className="text-left hover:text-white transition"
+                >
+                 Top SKU-Store
                 </button>
               </motion.div>
             )}
@@ -119,5 +121,5 @@ export const Sider = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
