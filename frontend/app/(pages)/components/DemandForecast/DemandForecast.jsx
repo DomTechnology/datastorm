@@ -108,28 +108,15 @@ export const DemandForecast = () => {
         const detailData = await detailRow.json();
 
         const payload = {
+          start_date: "2024-01-01",
           store_id: selectedStore,
           sku_id: selectedProduct,
           category: selectedCategory,
           brand: selectedBrand,
-
-          date: detailData.date,
-          month: detailData.month,
-          weekday: detailData.weekday,
-          is_weekend: detailData.is_weekend,
-          is_holiday: detailData.is_holiday,
-
-          // Fix data
-          list_price: detailData.list_price,
-          temperature: detailData.temperature,
-          discount_pct: detailData.discount_pct,
-          promo_flag: detailData.promo_flag,
-          horizon: 7,
-          stock_opening: detailData.stock_opening
         };
 
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/predict_unit_sold`,
+          `${process.env.NEXT_PUBLIC_API_URL}/predict_7days`,
           {
             method: "POST",
             headers: {
@@ -140,11 +127,22 @@ export const DemandForecast = () => {
         );
 
         const data = await res.json();
-        console.log(data);
-        // predictions = data.predictions;
 
         toast.success("Demand forecast fetched successfully!", { id: toastId });
-        setPredictedData(predictions);
+        const forecasts = data.data.daily_forecasts;
+
+        const demandPredictions = forecasts.map(item => ({
+          date: item.date,
+          predicted_unit_sold: Number(item.demand.units_sold.toFixed(2)),
+        }));
+
+        const leadTimePredictions = forecasts.map(item => ({
+          date: item.date,
+          predicted_unit_sold: Number(item.supply.lead_time_days.toFixed(2)),
+        }));
+
+        setPredictedData(demandPredictions);
+        setPredictedLeadTime(leadTimePredictions);
 
       } catch (err) {
         toast.error("Failed to fetch demand forecast.", { id: toastId });
