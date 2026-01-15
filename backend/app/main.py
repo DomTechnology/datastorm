@@ -1130,3 +1130,407 @@ def chatbot(
             "query": query,
         }
     }
+
+# ==================== CHANNEL ANALYTICS ====================
+
+@app.get('/channel/list')
+def get_channel_list(db: Session = Depends(get_db)):
+    """Get all available sales channels."""
+    channels = db.query(SalesFact.channel).distinct().all()
+    result = [c[0] for c in channels if c[0] is not None]
+    return {"data": result}
+
+@app.get('/analytics/channel')
+def get_channel_analytics(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+    month: str = Query("all", description="Filter by month"),
+):
+    """Get detailed channel performance analytics."""
+    query = db.query(
+        SalesFact.channel,
+        func.sum(SalesFact.net_sales).label("total_sales"),
+        func.sum(SalesFact.units_sold).label("total_units"),
+        func.count(func.distinct(SalesFact.store_id)).label("store_count"),
+        func.count(func.distinct(SalesFact.sku_id)).label("product_count"),
+        func.avg(SalesFact.discount_pct).label("avg_discount"),
+        func.sum(case((SalesFact.promo_flag == True, literal(1)), else_=literal(0))).label("promo_transactions"),
+        func.sum(case((SalesFact.stock_out_flag == True, literal(1)), else_=literal(0))).label("stockout_count"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    if month != "all":
+        query = query.filter(func.extract("month", SalesFact.date) == int(month))
+    
+    rows = query.group_by(SalesFact.channel).all()
+    
+    total_sales = sum(float(r.total_sales or 0) for r in rows)
+    
+    return {
+        "data": [
+            {
+                "channel": r.channel,
+                "sales": float(r.total_sales or 0),
+                "units": int(r.total_units or 0),
+                "stores": int(r.store_count or 0),
+                "products": int(r.product_count or 0),
+                "sales_pct": round((float(r.total_sales or 0) / total_sales * 100), 2) if total_sales > 0 else 0,
+                "avg_discount_pct": round(float(r.avg_discount or 0), 2),
+                "promo_transactions": int(r.promo_transactions or 0),
+                "stockout_count": int(r.stockout_count or 0),
+            }
+            for r in rows
+        ],
+        "summary": {
+            "total_sales": round(total_sales, 2),
+            "channels_count": len(rows)
+        }
+    }
+
+@app.get('/analytics/channel/daily')
+def get_channel_daily_sales(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    channel: str = Query("all", description="Filter by channel"),
+    year: str = Query("all", description="Filter by year"),
+    month: str = Query("all", description="Filter by month"),
+):
+    """Get daily sales trend by channel."""
+    query = db.query(
+        SalesFact.date,
+        SalesFact.channel,
+        func.sum(SalesFact.net_sales).label("sales"),
+        func.sum(SalesFact.units_sold).label("units"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if channel != "all":
+        query = query.filter(SalesFact.channel == channel)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    if month != "all":
+        query = query.filter(func.extract("month", SalesFact.date) == int(month))
+    
+    rows = query.group_by(SalesFact.date, SalesFact.channel).order_by(SalesFact.date).all()
+    
+    return {
+        "data": [
+            {
+                "date": r.date,
+                "channel": r.channel,
+                "sales": float(r.sales or 0),
+                "units": int(r.units or 0),
+            }
+            for r in rows
+        ]
+    }
+
+# ==================== PRICE & DISCOUNT ANALYTICS ====================
+
+@app.get('/analytics/pricing')
+def get_pricing_analytics(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+    month: str = Query("all", description="Filter by month"),
+):
+    """Get pricing and discount effectiveness analysis."""
+    query = db.query(
+        SalesFact.category,
+        func.avg(SalesFact.list_price).label("avg_list_price"),
+        func.avg(SalesFact.discount_pct).label("avg_discount_pct"),
+        func.sum(SalesFact.net_sales).label("total_sales"),
+        func.sum(SalesFact.gross_sales).label("total_gross_sales"),
+        func.sum(SalesFact.units_sold).label("total_units"),
+        func.avg(SalesFact.margin_pct).label("avg_margin_pct"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    if month != "all":
+        query = query.filter(func.extract("month", SalesFact.date) == int(month))
+    
+    rows = query.group_by(SalesFact.category).all()
+    
+    return {
+        "data": [
+            {
+                "category": r.category,
+                "avg_list_price": round(float(r.avg_list_price or 0), 2),
+                "avg_discount_pct": round(float(r.avg_discount_pct or 0), 2),
+                "price_realization": round((float(r.total_sales or 0) / float(r.total_gross_sales or 1)), 4),
+                "total_sales": round(float(r.total_sales or 0), 2),
+                "total_units": int(r.total_units or 0),
+                "avg_margin_pct": round(float(r.avg_margin_pct or 0), 2),
+            }
+            for r in rows
+        ]
+    }
+
+@app.get('/analytics/discount-impact')
+def get_discount_impact(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+):
+    """Analyze discount effectiveness on units sold."""
+    # Compare discounted vs non-discounted sales
+    query = db.query(
+        SalesFact.category,
+        func.sum(case((SalesFact.discount_pct > 0, SalesFact.units_sold), else_=0)).label("units_discounted"),
+        func.sum(case((SalesFact.discount_pct > 0, SalesFact.net_sales), else_=0)).label("sales_discounted"),
+        func.sum(case((SalesFact.discount_pct == 0, SalesFact.units_sold), else_=0)).label("units_no_discount"),
+        func.sum(case((SalesFact.discount_pct == 0, SalesFact.net_sales), else_=0)).label("sales_no_discount"),
+        func.count(case((SalesFact.discount_pct > 0, 1))).label("transaction_count_discounted"),
+        func.count(case((SalesFact.discount_pct == 0, 1))).label("transaction_count_no_discount"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    
+    rows = query.group_by(SalesFact.category).all()
+    
+    return {
+        "data": [
+            {
+                "category": r.category,
+                "units_with_discount": int(r.units_discounted or 0),
+                "units_without_discount": int(r.units_no_discount or 0),
+                "units_lift_pct": round(((int(r.units_discounted or 0) - int(r.units_no_discount or 0)) / max(int(r.units_no_discount or 1), 1) * 100), 2),
+                "sales_with_discount": round(float(r.sales_discounted or 0), 2),
+                "sales_without_discount": round(float(r.sales_no_discount or 0), 2),
+                "transaction_count_discounted": int(r.transaction_count_discounted or 0),
+                "transaction_count_no_discount": int(r.transaction_count_no_discount or 0),
+            }
+            for r in rows
+        ]
+    }
+
+# ==================== SUPPLIER ANALYTICS ====================
+
+@app.get('/supplier/list')
+def get_supplier_list(db: Session = Depends(get_db)):
+    """Get all suppliers."""
+    suppliers = db.query(SalesFact.supplier_id).distinct().all()
+    result = [s[0] for s in suppliers if s[0] is not None]
+    return {"data": result}
+
+@app.get('/analytics/supplier')
+def get_supplier_performance(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+):
+    """Analyze supplier performance and costs."""
+    query = db.query(
+        SalesFact.supplier_id,
+        func.count(func.distinct(SalesFact.sku_id)).label("products_supplied"),
+        func.sum(SalesFact.units_sold).label("total_units"),
+        func.sum(SalesFact.purchase_cost * SalesFact.units_sold).label("total_cost"),
+        func.sum(SalesFact.net_sales).label("total_sales"),
+        func.avg(SalesFact.lead_time_days).label("avg_lead_time"),
+        func.avg(SalesFact.margin_pct).label("avg_margin_pct"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    
+    rows = query.group_by(SalesFact.supplier_id).all()
+    
+    return {
+        "data": [
+            {
+                "supplier_id": r.supplier_id,
+                "products_supplied": int(r.products_supplied or 0),
+                "total_units": int(r.total_units or 0),
+                "total_cost": round(float(r.total_cost or 0), 2),
+                "total_sales": round(float(r.total_sales or 0), 2),
+                "profit": round(float((r.total_sales or 0) - (r.total_cost or 0)), 2),
+                "avg_lead_time_days": round(float(r.avg_lead_time or 0), 1),
+                "avg_margin_pct": round(float(r.avg_margin_pct or 0), 2),
+                "cost_per_unit": round(float((r.total_cost or 0) / max(r.total_units or 1, 1)), 2),
+            }
+            for r in rows
+        ]
+    }
+
+# ==================== WEATHER CORRELATION ====================
+
+@app.get('/analytics/weather-correlation')
+def get_weather_correlation(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+    month: str = Query("all", description="Filter by month"),
+):
+    """Analyze correlation between weather and sales."""
+    query = db.query(
+        SalesFact.date,
+        func.avg(SalesFact.temperature).label("avg_temp"),
+        func.sum(SalesFact.rain_mm).label("total_rain"),
+        func.sum(SalesFact.units_sold).label("units_sold"),
+        func.sum(SalesFact.net_sales).label("net_sales"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    if month != "all":
+        query = query.filter(func.extract("month", SalesFact.date) == int(month))
+    
+    rows = query.group_by(SalesFact.date).order_by(SalesFact.date).all()
+    
+    return {
+        "data": [
+            {
+                "date": r.date,
+                "temperature": round(float(r.avg_temp or 0), 1),
+                "rain_mm": round(float(r.total_rain or 0), 2),
+                "units_sold": int(r.units_sold or 0),
+                "sales": round(float(r.net_sales or 0), 2),
+            }
+            for r in rows
+        ]
+    }
+
+@app.get('/analytics/weather-by-category')
+def get_weather_category_analysis(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+):
+    """Analyze weather impact by product category."""
+    # Segment by temperature ranges
+    query = db.query(
+        SalesFact.category,
+        case(
+            (SalesFact.temperature < 10, "Cold (<10°C)"),
+            (SalesFact.temperature < 20, "Cool (10-20°C)"),
+            (SalesFact.temperature < 30, "Warm (20-30°C)"),
+            else_="Hot (>30°C)"
+        ).label("temp_segment"),
+        func.sum(SalesFact.units_sold).label("units"),
+        func.sum(SalesFact.net_sales).label("sales"),
+        func.count().label("record_count"),
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    
+    rows = query.group_by(SalesFact.category, "temp_segment").all()
+    
+    return {
+        "data": [
+            {
+                "category": r.category,
+                "temperature_segment": r.temp_segment,
+                "units": int(r.units or 0),
+                "sales": round(float(r.sales or 0), 2),
+                "avg_sales_per_transaction": round(float((r.sales or 0) / max(r.record_count or 1, 1)), 2),
+            }
+            for r in rows
+        ]
+    }
+
+# ==================== INVENTORY OPTIMIZATION ====================
+
+@app.get('/analytics/inventory-optimization')
+def get_inventory_optimization(
+    db: Session = Depends(get_db),
+    country: str = Query("all", description="Filter by country"),
+    year: str = Query("all", description="Filter by year"),
+):
+    """Get inventory optimization metrics and recommendations."""
+    # Get latest inventory status for each SKU-Store
+    latest_records = db.query(
+        SalesFact.sku_id,
+        SalesFact.store_id,
+        func.max(SalesFact.date).label("latest_date")
+    ).group_by(SalesFact.sku_id, SalesFact.store_id).subquery()
+    
+    query = db.query(
+        SalesFact.sku_id,
+        SalesFact.sku_name,
+        SalesFact.store_id,
+        SalesFact.stock_on_hand,
+        SalesFact.stock_opening,
+        SalesFact.lead_time_days,
+        func.avg(SalesFact.units_sold).label("avg_daily_sales"),
+        func.sum(SalesFact.units_sold).label("total_units_sold"),
+    ).join(
+        latest_records,
+        (SalesFact.sku_id == latest_records.c.sku_id) &
+        (SalesFact.store_id == latest_records.c.store_id) &
+        (SalesFact.date == latest_records.c.latest_date)
+    )
+    
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    
+    rows = query.group_by(
+        SalesFact.sku_id, SalesFact.sku_name, SalesFact.store_id,
+        SalesFact.stock_on_hand, SalesFact.stock_opening, SalesFact.lead_time_days
+    ).limit(500).all()
+    
+    inventory_data = []
+    for row in rows:
+        avg_daily = float(row.avg_daily_sales or 1)
+        lead_time = float(row.lead_time_days or 7)
+        safety_stock = int(row.stock_opening or 0)
+        current_stock = int(row.stock_on_hand or 0)
+        
+        # Calculate reorder point = (avg_daily_sales * lead_time) + safety_stock
+        reorder_point = int((avg_daily * lead_time) + (safety_stock * 0.5))
+        
+        # Calculate days of stock
+        days_of_stock = current_stock / avg_daily if avg_daily > 0 else 0
+        
+        # Determine recommendation
+        if current_stock <= reorder_point:
+            recommendation = "Order Now"
+            priority = "High"
+        elif days_of_stock < lead_time * 1.5:
+            recommendation = "Plan Replenishment"
+            priority = "Medium"
+        else:
+            recommendation = "Optimal"
+            priority = "Low"
+        
+        inventory_data.append({
+            "sku_id": row.sku_id,
+            "sku_name": row.sku_name,
+            "store_id": row.store_id,
+            "current_stock": current_stock,
+            "safety_stock": safety_stock,
+            "reorder_point": reorder_point,
+            "days_of_stock": round(days_of_stock, 1),
+            "avg_daily_sales": round(avg_daily, 1),
+            "lead_time_days": lead_time,
+            "recommendation": recommendation,
+            "priority": priority,
+        })
+    
+    return {
+        "data": inventory_data,
+        "summary": {
+            "high_priority_count": sum(1 for i in inventory_data if i["priority"] == "High"),
+            "medium_priority_count": sum(1 for i in inventory_data if i["priority"] == "Medium"),
+            "optimal_count": sum(1 for i in inventory_data if i["priority"] == "Low"),
+        }
+    }

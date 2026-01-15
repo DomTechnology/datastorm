@@ -1,137 +1,83 @@
 "use client";
 
-import { ChevronRight, ChevronDown } from "lucide-react";
+import {
+  LayoutDashboard,
+  BarChart3,
+  MapPinned,
+  Table2,
+  BellRing,
+  Layers3,
+  LineChart,
+} from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export const Sider = () => {
   const pathname = usePathname();
-  const isMainPage = pathname === "/";
+  const searchParams = useSearchParams();
+  const activeSection = searchParams.get("section") || "overview";
   const isForecasting = pathname.startsWith("/forecasting");
 
-  const scrollTo = (id, offset = 80) => {
-    const el = document.getElementById(id);
-    if (!el) return;
+  const navItems = [
+    { label: "Overview", section: "overview", icon: LayoutDashboard },
+    { label: "Financial", section: "financial", icon: BarChart3 },
+    { label: "Map", section: "map", icon: MapPinned },
+    { label: "Sales", section: "sales", icon: LineChart },
+    { label: "Top SKUs", section: "top-sku", icon: Table2 },
+    { label: "Stock Alerts", section: "alerts", icon: BellRing },
+    { label: "Analytics Suite", section: "analytics", icon: Layers3 },
+  ];
 
-    const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
-
-    window.scrollTo({
-      top: y,
-      behavior: "smooth",
-    });
-  };
-
-  const submenuVariants = {
-    hidden: { height: 0, opacity: 0 },
-    show: {
-      height: "auto",
-      opacity: 1,
-      transition: { duration: 0.25, ease: "easeOut" },
-    },
-    exit: {
-      height: 0,
-      opacity: 0,
-      transition: { duration: 0.2, ease: "easeIn" },
-    },
-  };
+  const linkFor = (section) => ({ pathname: "/", query: { section } });
 
   return (
     <div className="w-64 h-screen bg-[#313642] fixed left-0 top-0 z-50 text-white pt-20">
       <div className="flex flex-col gap-6 mt-10 px-5 text-gray-300">
-        {/* ===== Net Sales ===== */}
-        <div className="flex flex-col gap-2">
-          <Link
-            href="/"
-            className="w-full flex justify-between items-center text-lg font-medium hover:scale-[1.02] transition"
-          >
-            <span>Net Sales Overview</span>
-            {isMainPage ? <ChevronDown /> : <ChevronRight />}
-          </Link>
-
-          <AnimatePresence initial={false}>
-            {isMainPage && (
-              <motion.div
-                variants={submenuVariants}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-                className="ml-4 flex flex-col gap-3 text-sm text-gray-400 overflow-hidden"
+        <div className="flex flex-col gap-3">
+          {navItems.map((item) => {
+            const isActive = pathname === "/" && activeSection === item.section;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.section}
+                href={linkFor(item.section)}
+                className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive
+                    ? "bg-white/10 text-white"
+                    : "hover:bg-white/5 text-gray-200"
+                }`}
+                scroll={false}
+                prefetch
               >
-                <button
-                  onClick={() => scrollTo("financial-analytics", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Financial Analytics
-                </button>
-
-                <button
-                  onClick={() => scrollTo("stock-out-rate-to-location", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Stock out Rate to Location
-                </button>
-
-                <button
-                  onClick={() => scrollTo("sales-analysis", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Sales Analysis
-                </button>
-                <button
-                  onClick={() => scrollTo("top-sku-store", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Top SKU-Store
-                </button>
-
-                <button
-                  onClick={() => scrollTo("stock-alerts", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Stock Alerts
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <span className="flex items-center gap-2">
+                  <Icon size={16} />
+                  {item.label}
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-gray-400">
+                  view
+                </span>
+              </Link>
+            );
+          })}
         </div>
 
-        {/* ===== Forecasting ===== */}
-        <div className="flex flex-col gap-2">
+        <div className="border-t border-white/10 pt-4 mt-2 flex flex-col gap-2">
           <Link
             href="/forecasting"
-            className={`w-full flex justify-between items-center text-lg font-medium transition
-              ${isForecasting ? "text-white" : "hover:scale-[1.02]"}`}
+            className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition ${
+              isForecasting
+                ? "bg-white/10 text-white"
+                : "hover:bg-white/5 text-gray-200"
+            }`}
           >
-            <span>Forecasting</span>
-            {isForecasting ? <ChevronDown /> : <ChevronRight />}
+            <span className="flex items-center gap-2">
+              <LineChart size={16} />
+              Forecasting
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-gray-400">
+              view
+            </span>
           </Link>
-
-          <AnimatePresence initial={false}>
-            {isForecasting && (
-              <motion.div
-                variants={submenuVariants}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-                className="ml-4 flex flex-col gap-3 text-sm text-gray-400 overflow-hidden"
-              >
-                <button
-                  onClick={() => scrollTo("demand-forecast-results", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Demand Forecast Results
-                </button>
-
-                <button
-                  onClick={() => scrollTo("lead-time-prediction-results", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Lead Time Prediction Results
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </div>

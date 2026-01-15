@@ -1,32 +1,31 @@
 import { create } from "zustand";
 
-// Calculate default date range (1 month back from today)
-const getDefaultDates = () => {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setMonth(startDate.getMonth() - 1);
-
-  return {
-    startDate: startDate.toISOString().split("T")[0],
-    endDate: endDate.toISOString().split("T")[0],
-  };
-};
-
-const defaultDates = getDefaultDates();
+// Fixed default window to avoid realtime drift; dataset covers 2021-01-01..2023-12-31
+const DEFAULT_START = "2022-01-01";
+const DEFAULT_END = "2023-12-31";
+const DEFAULT_YEARS = ["2021", "2022", "2023"];
 
 export const useFilterStore = create((set) => ({
   countries: [],
-  yearList: [],
+  channels: [],
+  suppliers: [],
+  yearList: DEFAULT_YEARS,
   selectedCountry: "all",
-  selectedYear: "2021",
-  selectedMonth: "1",
-  startDate: defaultDates.startDate,
-  endDate: defaultDates.endDate,
+  selectedYear: "2022",
+  selectedMonth: "all",
+  selectedChannel: "all",
+  selectedSupplier: "all",
+  startDate: DEFAULT_START,
+  endDate: DEFAULT_END,
   setCountries: (countries) => set({ countries }),
+  setChannels: (channels) => set({ channels }),
+  setSuppliers: (suppliers) => set({ suppliers }),
   setYearList: (yearList) => set({ yearList: yearList }),
   setSelectedCountry: (country) => set({ selectedCountry: country }),
   setSelectedYear: (year) => set({ selectedYear: year }),
   setSelectedMonth: (month) => set({ selectedMonth: month }),
+  setSelectedChannel: (channel) => set({ selectedChannel: channel }),
+  setSelectedSupplier: (supplier) => set({ selectedSupplier: supplier }),
   setStartDate: (date) => set({ startDate: date }),
   setEndDate: (date) => set({ endDate: date }),
 }));
