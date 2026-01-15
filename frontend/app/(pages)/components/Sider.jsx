@@ -19,7 +19,7 @@ export const Sider = () => {
   const isForecasting = pathname.startsWith("/forecasting");
 
   const navItems = [
-    { label: "Overview", section: "overview", icon: LayoutDashboard },
+    { label: "Guideline", section: "overview", icon: LayoutDashboard },
     { label: "Financial", section: "financial", icon: BarChart3 },
     { label: "Map", section: "map", icon: MapPinned },
     { label: "Sales", section: "sales", icon: LineChart },
