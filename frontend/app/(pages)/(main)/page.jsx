@@ -248,7 +248,7 @@ export default function MapPage() {
             </div>
           </div>
         </div>
-        <div className="mt-10" id="top-selling-sku-store">
+        <div className="mt-10" id="top-sku-store">
           <SubTitle text="Top Selling SKU-Store" />
 
           <h3 className="text-xl font-bold mb-4"></h3>

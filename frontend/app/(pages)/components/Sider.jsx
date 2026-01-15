@@ -59,6 +59,13 @@ export const Sider = () => {
                 className="ml-4 flex flex-col gap-3 text-sm text-gray-400 overflow-hidden"
               >
                 <button
+                  onClick={() => scrollTo("financial-analytics", 100)}
+                  className="text-left hover:text-white transition"
+                >
+                  Financial Analytics
+                </button>
+
+                <button
                   onClick={() => scrollTo("stock-out-rate-to-location", 100)}
                   className="text-left hover:text-white transition"
                 >
@@ -83,13 +90,6 @@ export const Sider = () => {
                   className="text-left hover:text-white transition"
                 >
                   Stock Alerts
-                </button>
-
-                <button
-                  onClick={() => scrollTo("financial-analytics", 100)}
-                  className="text-left hover:text-white transition"
-                >
-                  Financial Analytics
                 </button>
               </motion.div>
             )}
