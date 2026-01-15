@@ -33,38 +33,44 @@ export default function Chatbot() {
 
     setLoading(true);
 
-    // try {
-    //   const res = await chatBot({ message: userMessage });
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chatbot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userMessage }),
+      }).then((res) => res.json());
 
-    //   if (res?.code === "success" && res.response) {
-    //     setMessages((prev) => [
-    //       ...prev,
-    //       {
-    //         role: "bot",
-    //         type: res.response.type || "text",
-    //         ...res.response,
-    //       },
-    //     ]);
-    //   } else {
-    //     setMessages((prev) => [
-    //       ...prev,
-    //       {
-    //         role: "bot",
-    //         type: "text",
-    //         text: "Xin lỗi, mình chưa thể xử lý yêu cầu này.",
-    //       },
-    //     ]);
-    //   }
-    // } catch (err) {
-    //   setMessages((prev) => [
-    //     ...prev,
-    //     {
-    //       role: "bot",
-    //       type: "text",
-    //       text: "Có lỗi xảy ra, bạn thử lại nhé 😥",
-    //     },
-    //   ]);
-    // }
+      if (res?.code === "success") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "bot",
+            type: "text",
+            text: res.data.answer,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "bot",
+            type: "text",
+            text: "Sorry, I couldn't process your request. Please try again later.",
+          },
+        ]);
+      }
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          type: "text",
+          text: "Sorry, an error occurred. Please try again later.",
+        },
+      ]);
+    }
 
     setLoading(false);
   };
@@ -72,7 +78,7 @@ export default function Chatbot() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button className="fixed bottom-5 right-5 z-50 rounded-full bg-[var(--main-color)] hover:bg-[var(--main-hover)] text-white px-4 py-6 shadow-lg">
+        <Button className="fixed bottom-10 right-5 z-50 rounded-full bg-[var(--main-color)] hover:bg-[var(--main-hover)] text-white px-4 py-6 shadow-lg">
           <BotMessageSquare fontSize={35} size={35} />
         </Button>
       </PopoverTrigger>
@@ -103,35 +109,12 @@ export default function Chatbot() {
                     }`}
                   >
                     <div className="font-semibold mb-1">
-                      {m.role === "user" ? "Bạn" : "AI"}
+                      {m.role === "user" ? "You" : "DOM Bot"}
                     </div>
                     <div>{m.text || m.message}</div>
                   </div>
                 );
               }
-
-              /* ===== ORDER LIST ===== */
-              if (m.type === "order_list") {
-                const orders = Array.isArray(m.orders) ? m.orders : [];
-
-                return (
-                  <div
-                    key={i}
-                    className="self-start bg-gray-100 rounded-md p-3 w-full"
-                  >
-                    <div className="font-semibold mb-2">
-                      {m.message || "Danh sách đơn hàng"}
-                    </div>
-
-                    {orders.length === 0 && (
-                      <div className="text-sm text-gray-500 italic">
-                        Không có đơn hàng nào
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
               return null;
             })}
 

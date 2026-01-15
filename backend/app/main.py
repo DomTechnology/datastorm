@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, literal
+from sqlalchemy import func, case, literal, text
 from .model.sales_fact import SalesFact
 from .utils.db import get_db
 from fastapi.middleware.cors import CORSMiddleware
@@ -701,4 +701,187 @@ async def suggestion(
     return {
         "type": "text",
         "message": response.text
+    }
+
+def validate_sql(sql: str):
+    if not sql:
+        raise ValueError("Empty SQL generated")
+
+    sql = sql.strip()
+
+    if sql.endswith(";"):
+        sql = sql[:-1]
+
+    lower = sql.lower()
+
+    if not lower.startswith("select"):
+        raise ValueError("Only SELECT queries are allowed")
+
+    forbidden = ["insert", "update", "delete", "drop"]
+    if any(k in lower for k in forbidden):
+        raise ValueError("Unsafe SQL detected")
+
+    if "count(" not in lower and "sum(" not in lower and "avg(" not in lower:
+        if "limit" not in lower:
+            sql += " LIMIT 1000"
+
+    return sql
+
+@app.post("/chatbot")
+def chatbot(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    message = request.get("message", "")
+
+    prompt = f"""
+    You are a smart and friendly Sales Demand Consulting Assistant of the DOM Team. 
+    You are a senior data analyst.
+    You write PostgreSQL queries.
+
+    Rules:
+    - Generate ONLY ONE SQL query
+    - Use SELECT only
+    - Never modify data
+    - Do not explain
+    - Use table: sales_fact
+    - Always use LIMIT if result can be large
+    - Do NOT use SELECT * because there are too many columns
+    - Always select only necessary columns
+    - If using aggregation (SUM, AVG, COUNT), include proper GROUP BY
+
+    This is the schema of the data you have to work with:
+    Database: sales_fact (fact table – daily sales)
+
+    Grain:
+    - 1 row = 1 SKU sold in 1 store on 1 day
+    Primary key: (date, store_id, sku_id)
+
+    Time columns:
+    - date (DATE)
+    - year, month, day
+    - weekofyear
+    - weekday (1–7)
+    - is_weekend (boolean)
+    - is_holiday (boolean)
+
+    Weather:
+    - temperature (°C)
+    - rain_mm
+
+    Store:
+    - store_id
+    - country
+    - city
+    - channel (online, offline, etc.)
+    - latitude, longitude
+
+    Product:
+    - sku_id
+    - sku_name
+    - category
+    - subcategory
+    - brand
+
+    Sales:
+    - units_sold
+    - list_price
+    - discount_pct
+    - promo_flag
+    - gross_sales
+    - net_sales
+
+    Inventory:
+    - stock_opening
+    - stock_on_hand
+    - stock_out_flag
+    - replenishment_units
+    - lead_time_days
+
+    Supplier:
+    - supplier_id
+    - purchase_cost
+    - margin_pct
+
+    Here is the user question:
+    {message}
+    """
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash", 
+        contents=[
+            {
+                "role": "user",
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    )
+
+    raw_sql = response.text or ""
+    query = (
+        raw_sql
+        .replace("```sql", "")
+        .replace("```", "")
+        .strip()
+    )
+    try:
+        query = validate_sql(query)
+    except Exception as e:
+        return {
+            "code": "error",
+            "message": f"Invalid SQL generated: {str(e)}",
+            "raw_sql": raw_sql
+        }
+    
+    try:
+        rows = db.execute(text(query)).fetchall()
+        result = [dict(row._mapping) for row in rows]
+    except Exception as e:
+        return {
+            "code": "error",
+            "message": "SQL execution failed",
+            "query": query,
+            "error": str(e)
+        }
+    
+    answer_prompt = f"""
+    You are a smart and friendly Sales Demand Consulting Assistant of the DOM Team. 
+    You are a senior data analyst.
+    Based on the following SQL query result, provide a concise answer to the user's question.
+    Do not repeat the SQL or the result back to the user.
+    SQL Query:  
+    {query}
+    SQL Result:
+    {result}
+    User Question:
+    {message}
+    Provide a concise answer in less than 200 words.
+    Do not use any special formatting.
+    Do not mention you are an AI model.
+    Do not repeat the context back to the user or repeat your flow of thought.
+    Do not use any markdown formatting.
+    """
+
+    answer_response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[
+            {
+                "role": "user",
+                "parts": [
+                    {"text": answer_prompt}
+                ]
+            }
+        ]
+    )
+
+    return {
+        "code": "success",
+        "message": "Chat successful!",
+        "data": {
+            "answer": answer_response.text,
+            "query": query,
+        }
     }
