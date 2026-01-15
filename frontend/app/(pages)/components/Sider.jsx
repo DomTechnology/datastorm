@@ -31,7 +31,10 @@ export const Sider = () => {
   const linkFor = (section) => ({ pathname: "/", query: { section } });
 
   return (
-    <div className="w-64 h-screen bg-[#313642] fixed left-0 top-0 z-50 text-white pt-20">
+    <div className="w-64 h-screen bg-[#313642] fixed left-0 top-0 z-50 text-white pt-10">
+      <div className="text-[24px] text-white font-semibold ml-5">
+        Sale Management Dashboard
+      </div>
       <div className="flex flex-col gap-6 mt-10 px-5 text-gray-300">
         <div className="flex flex-col gap-3">
           {navItems.map((item) => {

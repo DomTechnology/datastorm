@@ -547,219 +547,248 @@ export default function MapPage() {
       default:
         return (
           <section className="flex flex-col gap-6">
-            {scopeBanner}
-            {renderInsights()}
-
-            {/* Quick Navigation Cards */}
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  <TrendingUp className="text-blue-700" size={20} />
-                  <h3 className="font-semibold text-blue-900">
-                    Financial Performance
-                  </h3>
-                </div>
-                <p className="text-sm text-blue-700 mb-4">
-                  View revenue trends, profit margins, and financial KPIs across
-                  regions and time periods.
+            {/* Welcome Section */}
+            <div className="rounded-2xl bg-white border// border-slate-200// shadow-sm// p-6">
+              <div className="text-center mb-8//">
+                <h1 className="text-3xl font-bold text-slate-900 mb-4">
+                  Welcome to DataStorm Analytics Dashboard
+                </h1>
+                <p className="text-lg text-slate-600 max-w-4xl mx-auto">
+                  Your comprehensive platform for FMCG sales analytics,
+                  inventory management, and business intelligence. Navigate
+                  through different sections to explore detailed insights and
+                  make data-driven decisions.
                 </p>
-                <div className="flex items-center gap-2 text-xs text-blue-600">
-                  <span className="font-medium">Quick Stat:</span>
-                  <span>
-                    ${Math.round(Math.random() * 1000000).toLocaleString()}+
-                    Total Revenue
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  <Globe2 className="text-emerald-700" size={20} />
-                  <h3 className="font-semibold text-emerald-900">
-                    Geographic Insights
-                  </h3>
-                </div>
-                <p className="text-sm text-emerald-700 mb-4">
-                  Explore stock levels, demand patterns, and performance by
-                  location on interactive maps.
-                </p>
-                <div className="flex items-center gap-2 text-xs text-emerald-600">
-                  <span className="font-medium">Coverage:</span>
-                  <span>
-                    {Array.isArray(countries) ? countries.length : 0} Countries
-                    Tracked
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  <ShieldCheck className="text-amber-700" size={20} />
-                  <h3 className="font-semibold text-amber-900">
-                    Stock & Alerts
-                  </h3>
-                </div>
-                <p className="text-sm text-amber-700 mb-4">
-                  Monitor inventory levels, receive low-stock alerts, and
-                  optimize replenishment schedules.
-                </p>
-                <div className="flex items-center gap-2 text-xs text-amber-600">
-                  <span className="font-medium">Active Alerts:</span>
-                  <span>
-                    {Math.floor(Math.random() * 12) + 3} Items Need Attention
-                  </span>
-                </div>
               </div>
             </div>
 
-            {/* Performance Summary */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <Target className="text-slate-700" />
-                  <SubTitle text="Performance Summary" />
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
-                    <span className="text-sm font-medium text-slate-700">
-                      Top Performing SKUs
-                    </span>
-                    <span className="text-lg font-semibold text-emerald-600">
-                      {topProducts.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
-                    <span className="text-sm font-medium text-slate-700">
-                      Average Units Sold
-                    </span>
-                    <span className="text-lg font-semibold text-blue-600">
-                      {topProducts.length > 0
-                        ? Math.round(
-                            topProducts.reduce(
-                              (acc, p) => acc + (p.units_sold || 0),
-                              0
-                            ) / topProducts.length
-                          ).toLocaleString()
-                        : "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
-                    <span className="text-sm font-medium text-slate-700">
-                      Data Coverage
-                    </span>
-                    <span className="text-lg font-semibold text-purple-600">
-                      {selectedYear === "all" ? "All Years" : selectedYear}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <PackageSearch className="text-slate-700" />
-                  <SubTitle text="Top Products Preview" />
-                </div>
-                <div className="space-y-3">
-                  {topProducts.slice(0, 4).map((product, index) => (
-                    <div
-                      key={product.sku_id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900">
-                          {product.sku_name || `SKU ${product.sku_id}`}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {product.city} • {product.store_id}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {product.units_sold?.toLocaleString() || 0} units
-                        </p>
-                        <p className="text-xs text-emerald-600">
-                          ${product.net_sales?.toFixed(0) || 0}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {topProducts.length === 0 && (
-                    <div className="text-center py-4 text-slate-500 text-sm">
-                      No product data available yet
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Guide */}
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
+            {/* How to Use Guide */}
+            <div className="rounded-2xl bg-white border// border-slate-200// shadow-sm// p-6">
+              <div className="flex items-center gap-3 mb-6">
                 <Globe2 className="text-slate-700" />
-                <SubTitle text="Dashboard Navigation" />
+                <h2 className="text-2xl font-semibold text-slate-900">
+                  How to Use This Dashboard
+                </h2>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
-                  <TrendingUp className="text-emerald-600" size={16} />
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                      1
+                    </span>
+                    Choose Your Section
+                  </h3>
+                  <p className="text-slate-600 ml-8">
+                    Use the navigation sidebar to select the analytics section
+                    you want to explore. Each section provides specialized
+                    insights for different business needs.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <span className="bg-green-100 text-green-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                      2
+                    </span>
+                    Apply Filters
+                  </h3>
+                  <p className="text-slate-600 ml-8">
+                    Most sections include filtering options to narrow down data
+                    by country, year, month, or other relevant parameters.
+                    Adjust filters to focus on specific metrics.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <span className="bg-purple-100 text-purple-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                      3
+                    </span>
+                    Analyze Data
+                  </h3>
+                  <p className="text-slate-600 ml-8">
+                    Interact with charts, tables, and visualizations. Hover over
+                    elements for detailed information and use the insights to
+                    make informed business decisions.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <span className="bg-amber-100 text-amber-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                      4
+                    </span>
+                    Monitor Alerts
+                  </h3>
+                  <p className="text-slate-600 ml-8">
+                    Keep an eye on stock alerts and inventory warnings to stay
+                    ahead of potential supply chain issues and optimize your
+                    operations.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Available Sections */}
+            <div className="rounded-2xl bg-white border// border-slate-200// shadow-sm// p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <Target className="text-slate-700" />
+                <h2 className="text-2xl font-semibold text-slate-900">
+                  Available Dashboard Sections
+                </h2>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                  <TrendingUp className="text-emerald-600 mt-1" size={20} />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
                       Financial Analytics
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Comprehensive revenue analysis, profit margins, and
+                      financial KPIs with trend visualization.
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Revenue & profit analysis
-                    </p>
+                    <div className="text-xs text-slate-500">
+                      <span className="font-medium">Features:</span> Revenue
+                      trends, profit analysis, financial metrics
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
-                  <Globe2 className="text-blue-600" size={16} />
+
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                  <Globe2 className="text-blue-600 mt-1" size={20} />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
                       Geographic View
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Interactive maps showing stock-out rates, demand patterns,
+                      and performance by location.
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Location-based insights
-                    </p>
+                    <div className="text-xs text-slate-500">
+                      <span className="font-medium">Features:</span> Location
+                      mapping, stock-out visualization
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
-                  <Target className="text-purple-600" size={16} />
+
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                  <Target className="text-purple-600 mt-1" size={20} />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
                       Sales Analysis
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Detailed sales performance tracking with filtering options
+                      and trend analysis.
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Performance tracking
-                    </p>
+                    <div className="text-xs text-slate-500">
+                      <span className="font-medium">Features:</span> Sales
+                      tracking, performance metrics
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
-                  <PackageSearch className="text-orange-600" size={16} />
+
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                  <PackageSearch className="text-orange-600 mt-1" size={20} />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
                       Top SKUs
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Best-selling products analysis with detailed store and
+                      product performance data.
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Best-selling products
-                    </p>
+                    <div className="text-xs text-slate-500">
+                      <span className="font-medium">Features:</span> Product
+                      rankings, sales data
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
-                  <ShieldCheck className="text-red-600" size={16} />
+
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                  <ShieldCheck className="text-red-600 mt-1" size={20} />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
                       Stock Alerts
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Real-time inventory warnings and stock alerts to prevent
+                      supply chain disruptions.
                     </p>
-                    <p className="text-xs text-slate-500">Inventory warnings</p>
+                    <div className="text-xs text-slate-500">
+                      <span className="font-medium">Features:</span> Inventory
+                      warnings, alert management
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
-                  <TrendingUp className="text-indigo-600" size={16} />
+
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                  <TrendingUp className="text-indigo-600 mt-1" size={20} />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
                       Advanced Analytics
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Deep-dive analysis including channel performance, pricing,
+                      supplier metrics, and weather correlation.
                     </p>
-                    <p className="text-xs text-slate-500">Deep dive analysis</p>
+                    <div className="text-xs text-slate-500">
+                      <span className="font-medium">Features:</span>{" "}
+                      Multi-dimensional analytics, correlations
+                    </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Tips */}
+            <div className="rounded-2xl bg-white border// border-slate-200// shadow-sm// p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <ShieldCheck className="text-slate-700" />
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Quick Tips for Better Analytics
+                </h2>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="bg-slate-50// rounded-lg p-4 border border-slate-100">
+                  <h4 className="font-semibold text-slate-900 mb-2">
+                    Filter Strategically
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    Start with broader filters and gradually narrow down to
+                    specific time periods or regions for detailed insights.
+                  </p>
+                </div>
+                <div className="bg-slate-50// rounded-lg p-4 border border-slate-100">
+                  <h4 className="font-semibold text-slate-900 mb-2">
+                    Compare Periods
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    Use different time ranges to identify seasonal patterns and
+                    growth trends in your data.
+                  </p>
+                </div>
+                <div className="bg-slate-50// rounded-lg p-4 border border-slate-100">
+                  <h4 className="font-semibold text-slate-900 mb-2">
+                    Monitor KPIs
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    Regularly check key performance indicators in the Financial
+                    Analytics section for business health.
+                  </p>
+                </div>
+                <div className="bg-slate-50// rounded-lg p-4 border border-slate-100">
+                  <h4 className="font-semibold text-slate-900 mb-2">
+                    Stay Alert
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    Keep the Stock Alerts section handy to prevent inventory
+                    issues and maintain optimal stock levels.
+                  </p>
                 </div>
               </div>
             </div>
@@ -769,18 +798,24 @@ export default function MapPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto px-6 py-10">
+    <div className="min-h-screen// bg-slate-50//">
+      <div className="container mx-auto px-6// py-10//">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <p className="text-2xl font-semibold text-slate-900">
+            <p
+              className={`${
+                activeSection == "overview"
+                  ? "hidden"
+                  : "text-2xl font-semibold text-slate-900"
+              }`}
+            >
               {`Dashboard · ${activeSection}`}
             </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-8">
-          {renderFilters()}
+          {activeSection !== "overview" && renderFilters()}
           {renderSectionContent()}
         </div>
       </div>
