@@ -4,17 +4,22 @@ import Map, { Layer, Source, useMap } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useState } from "react";
 import { useGlobalLoading } from "../../../context/loadingContext";
+import { useFilterStore } from "@/app/store/useFilterStore";
 
 export const MainMap = () => {
   const [zoom, setZoom] = useState(2);
   const [storePoints, setStorePoints] = useState([]);
+
+  const selectedCountry = useFilterStore((state) => state.selectedCountry);
+  const selectedYear = useFilterStore((state) => state.selectedYear);
+  const selectedMonth = useFilterStore((state) => state.selectedMonth);
 
   const { startLoading, stopLoading, isLoading } = useGlobalLoading();
 
   useEffect(() => {
     const fetchData = async () => {
       startLoading();
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/net_sales/location`)
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/net_sales/location?country=${selectedCountry}&year=${selectedYear}&month=${selectedMonth}`)
         .then((response) => response.json())
         .then((data) => {
           setStorePoints(data);
@@ -22,7 +27,7 @@ export const MainMap = () => {
         });
     };
     fetchData();
-  }, []);
+  }, [selectedCountry, selectedYear, selectedMonth]);
 
   const { current: map } = useMap();
   useEffect(() => {

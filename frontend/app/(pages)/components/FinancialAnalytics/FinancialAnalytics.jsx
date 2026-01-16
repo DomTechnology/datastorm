@@ -33,6 +33,7 @@ export const FinancialAnalytics = () => {
   const selectedYear = useFilterStore((state) => state.selectedYear);
   const startDate = useFilterStore((state) => state.startDate);
   const endDate = useFilterStore((state) => state.endDate);
+  const selectedMonth = useFilterStore((state) => state.selectedMonth);
   const setStartDate = useFilterStore((state) => state.setStartDate);
   const setEndDate = useFilterStore((state) => state.setEndDate);
 
@@ -45,15 +46,18 @@ export const FinancialAnalytics = () => {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedCountry, selectedYear, startDate, endDate]);
+  }, [selectedCountry, selectedYear, startDate, endDate, selectedMonth]);
 
   const fetchAnalytics = async () => {
     try {
+      setProfitData([]);
+      setRevenueData([]);
+      setKpiData(null);
       startLoading();
       setLoading(true);
       // Fetch revenue data
       const revenueRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/analytics/revenue?country=${selectedCountry}&year=${selectedYear}`
+        `${process.env.NEXT_PUBLIC_API_URL}/analytics/revenue?country=${selectedCountry}&year=${selectedYear}&month=${selectedMonth}`
       );
       const revenueJson = await revenueRes.json();
       setRevenueData(revenueJson.data || []);

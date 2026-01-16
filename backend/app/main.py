@@ -383,6 +383,9 @@ def get_units_sold_discount_scatter(
 @app.get("/net_sales/location")
 def get_net_sales_by_location(
     db: Session = Depends(get_db),
+    country: str = Query("all", description="Country to filter by"),
+    year: str = Query("all", description="Filter by year, use 'all' for no filter"),
+    month: str = Query("all", description="Filter by month, use 'all' for no filter")
 ):
     query = db.query(
         SalesFact.store_id,
@@ -404,6 +407,13 @@ def get_net_sales_by_location(
         SalesFact.latitude,
         SalesFact.longitude
     )
+
+    if country != "all":
+        query = query.filter(SalesFact.country == country)
+    if year != "all":
+        query = query.filter(func.extract("year", SalesFact.date) == int(year))
+    if month != "all":
+        query = query.filter(func.extract("month", SalesFact.date) == int(month))
 
     rows = query.all()
 

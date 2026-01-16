@@ -33,6 +33,7 @@ import { useSearchParams } from "next/navigation";
 import { SubTitle } from "../components/SubTitle";
 import { useGlobalLoading } from "../../context/loadingContext";
 import { Button } from "@/components/ui/button";
+import { TopSKUProduct } from "../components/TopSKUProduct/TopSKUProduct";
 
 const monthList = [
   "1",
@@ -87,8 +88,6 @@ export default function MapPage() {
   const startDate = useFilterStore((state) => state.startDate);
   const endDate = useFilterStore((state) => state.endDate);
 
-  const [topProducts, setTopProducts] = useState([]);
-
   const { startLoading, stopLoading, isLoading } = useGlobalLoading();
 
   useEffect(() => {
@@ -98,11 +97,6 @@ export default function MapPage() {
         .then((res) => res.json())
         .then((data) => {
           setCountries(data.countries);
-        });
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sku/top?limit=10`)
-        .then((res) => res.json())
-        .then((data) => {
-          setTopProducts(data.data);
         });
       stopLoading();
     };
@@ -140,14 +134,14 @@ export default function MapPage() {
       const years =
         startDate && endDate
           ? Array.from(
-              {
-                length:
-                  new Date(endDate).getFullYear() -
-                  new Date(startDate).getFullYear() +
-                  1,
-              },
-              (_, i) => new Date(startDate).getFullYear() + i
-            )
+            {
+              length:
+                new Date(endDate).getFullYear() -
+                new Date(startDate).getFullYear() +
+                1,
+            },
+            (_, i) => new Date(startDate).getFullYear() + i
+          )
           : yearList;
 
       return Array.from({ length: totalYears }, (_, i) => String(start + i));
@@ -155,30 +149,6 @@ export default function MapPage() {
 
     return yearList;
   }, [endDate, startDate, yearList]);
-
-  const insightCards = [
-    {
-      label: "Tracked SKUs",
-      value: topProducts.length,
-      helper: "Top-selling set",
-      icon: PackageSearch,
-      tone: "bg-blue-50 text-blue-700 border-blue-100",
-    },
-    {
-      label: "Countries",
-      value: Array.isArray(countries) ? countries.length : 0,
-      helper: "Coverage in scope",
-      icon: Globe2,
-      tone: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    },
-    {
-      label: "Periods",
-      value: Array.isArray(years) ? years.length : 0,
-      helper: "Years available",
-      icon: Target,
-      tone: "bg-amber-50 text-amber-700 border-amber-100",
-    },
-  ];
 
   const scopeBanner = (
     <div className="rounded-xl bg-slate-50 border border-dashed border-slate-200 p-4 flex items-center gap-3 text-sm text-slate-600">
@@ -216,7 +186,7 @@ export default function MapPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div className="flex flex-col gap-2">
           <Label
             htmlFor="country-select"
@@ -226,9 +196,10 @@ export default function MapPage() {
             Country
           </Label>
           <Select
-            value={selectedCountry}
-            onValueChange={setSelectedCountry}
+            value={selectedCountryTmp}
+            onValueChange={setSelectedCountryTmp}
             id="country-select"
+            disabled={!countries?.length || isLoading}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select country" />
@@ -239,10 +210,10 @@ export default function MapPage() {
               </SelectItem>
               {Array.isArray(countries)
                 ? countries.map((country) => (
-                    <SelectItem key={country} value={country}>
-                      {country}
-                    </SelectItem>
-                  ))
+                  <SelectItem key={country} value={country}>
+                    {country}
+                  </SelectItem>
+                ))
                 : null}
             </SelectContent>
           </Select>
@@ -257,9 +228,9 @@ export default function MapPage() {
             Year
           </Label>
           <Select
-            value={selectedYear}
-            onValueChange={setSelectedYear}
-            disabled={!years?.length}
+            value={selectedYearTmp}
+            onValueChange={setSelectedYearTmp}
+            disabled={!years?.length || isLoading}
             id="year-select"
           >
             <SelectTrigger className="w-full">
@@ -268,10 +239,10 @@ export default function MapPage() {
             <SelectContent>
               {Array.isArray(years)
                 ? years.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))
                 : null}
             </SelectContent>
           </Select>
@@ -286,9 +257,10 @@ export default function MapPage() {
             Month
           </Label>
           <Select
-            value={selectedMonth}
-            onValueChange={setSelectedMonth}
+            value={selectedMonthTmp}
+            onValueChange={setSelectedMonthTmp}
             id="month-select"
+            disabled={isLoading}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select month" />
@@ -302,33 +274,44 @@ export default function MapPage() {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="w-full">
+          <Button
+            className="mt-7.5 w-full bg-[var(--main-color)] hover:bg-[var(--main-hover)] text-white"
+            onClick={handleFilter}
+            disabled={isLoading}
+          >
+            <Filter size={14} />
+            Apply Filters
+          </Button>
+        </div>
       </div>
     </div>
   );
 
-  const renderInsights = () => (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {insightCards.map((card) => (
-        <div
-          key={card.label}
-          className={`rounded-xl border p-4 shadow-sm ${card.tone}`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-white/70 p-2 border border-white/80">
-              <card.icon size={18} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold">{card.label}</p>
-              <p className="text-2xl font-semibold leading-tight">
-                {card.value || 0}
-              </p>
-              <p className="text-xs mt-1 opacity-80">{card.helper}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  // const renderInsights = () => (
+  //   <div className="grid gap-4 lg:grid-cols-3">
+  //     {insightCards.map((card) => (
+  //       <div
+  //         key={card.label}
+  //         className={`rounded-xl border p-4 shadow-sm ${card.tone}`}
+  //       >
+  //         <div className="flex items-center gap-3">
+  //           <div className="rounded-full bg-white/70 p-2 border border-white/80">
+  //             <card.icon size={18} />
+  //           </div>
+  //           <div className="flex-1">
+  //             <p className="text-sm font-semibold">{card.label}</p>
+  //             <p className="text-2xl font-semibold leading-tight">
+  //               {card.value || 0}
+  //             </p>
+  //             <p className="text-xs mt-1 opacity-80">{card.helper}</p>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     ))}
+  //   </div>
+  // );
 
   const renderSectionContent = () => {
     switch (activeSection) {
@@ -363,7 +346,7 @@ export default function MapPage() {
           </section>
         );
 
-      case "sales":
+      // case "sales":
         return (
           <section className="grid gap-6">
             {scopeBanner}
@@ -408,77 +391,14 @@ export default function MapPage() {
       case "top-sku":
         return (
           <section className="grid gap-6">
-            {scopeBanner}
+            {/* {scopeBanner} */}
             <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
               <div className="flex items-center gap-3 mb-4">
                 <PackageSearch className="text-slate-700" />
                 <SubTitle text="Top Selling SKU-Store" />
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-slate-100">
-                <table className="min-w-full divide-y divide-slate-100">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">No.</th>
-                      <th className="px-4 py-3">SKU ID</th>
-                      <th className="px-4 py-3">Product Name</th>
-                      <th className="px-4 py-3">Supplier ID</th>
-                      <th className="px-4 py-3">Store ID</th>
-                      <th className="px-4 py-3">City</th>
-                      <th className="px-4 py-3">Units Sold</th>
-                      <th className="px-4 py-3">Net Sales</th>
-                      <th className="px-4 py-3">Stock Opening</th>
-                      <th className="px-4 py-3">Alert</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-                    {topProducts.map((product, index) => (
-                      <tr
-                        key={`${product.sku_id}-${product.store_id}-${index}`}
-                        className="hover:bg-slate-50"
-                      >
-                        <td className="px-4 py-3 font-semibold text-slate-900">
-                          {index + 1}
-                        </td>
-                        <td className="px-4 py-3">{product.sku_id ?? "—"}</td>
-                        <td className="px-4 py-3">{product.sku_name ?? "—"}</td>
-                        <td className="px-4 py-3">
-                          {product.supplier_id ?? "—"}
-                        </td>
-                        <td className="px-4 py-3">{product.store_id ?? "—"}</td>
-                        <td className="px-4 py-3">{product.city ?? "—"}</td>
-                        <td className="px-4 py-3">
-                          {product.units_sold ?? "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {product.net_sales
-                            ? product.net_sales.toFixed(2)
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {product.stock_opening ?? "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-100">
-                            <ShieldCheck size={14} />
-                            Watch
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {!topProducts.length ? (
-                      <tr>
-                        <td
-                          colSpan={10}
-                          className="px-4 py-6 text-center text-slate-500"
-                        >
-                          No top-selling SKUs available yet.
-                        </td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
-              </div>
+              <TopSKUProduct />
             </div>
           </section>
         );
@@ -501,7 +421,7 @@ export default function MapPage() {
         return (
           <section className="">
             {scopeBanner}
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 mt-5">
               <div className="flex items-center gap-3 mb-4">
                 <Target className="text-slate-700" />
                 <SubTitle text="Channel Performance Analytics" />
@@ -509,7 +429,7 @@ export default function MapPage() {
               <ChannelAnalytics />
             </div>
 
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 mt-5">
               <div className="flex items-center gap-3 mb-4">
                 <TrendingUp className="text-slate-700" />
                 <SubTitle text="Price & Discount Effectiveness" />
@@ -517,7 +437,7 @@ export default function MapPage() {
               <PriceDiscountAnalytics />
             </div>
 
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 mt-5">
               <div className="flex items-center gap-3 mb-4">
                 <ShieldCheck className="text-slate-700" />
                 <SubTitle text="Supplier Performance & Cost Analysis" />
@@ -525,7 +445,7 @@ export default function MapPage() {
               <SupplierPerformance />
             </div>
 
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 mt-5">
               <div className="flex items-center gap-3 mb-4">
                 <PackageSearch className="text-slate-700" />
                 <SubTitle text="Inventory Optimization & Replenishment" />
@@ -533,7 +453,7 @@ export default function MapPage() {
               <InventoryOptimization />
             </div>
 
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 xl:col-span-2">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 xl:col-span-2 mt-5">
               <div className="flex items-center gap-3 mb-4">
                 <Globe2 className="text-slate-700" />
                 <SubTitle text="Weather Impact & Demand Correlation" />
@@ -803,11 +723,10 @@ export default function MapPage() {
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
             <p
-              className={`${
-                activeSection == "overview"
+              className={`${activeSection == "overview"
                   ? "hidden"
                   : "text-2xl font-semibold text-slate-900"
-              }`}
+                }`}
             >
               {`Dashboard · ${activeSection}`}
             </p>
@@ -815,7 +734,7 @@ export default function MapPage() {
         </div>
 
         <div className="flex flex-col gap-8">
-          {activeSection !== "overview" && renderFilters()}
+          {(activeSection !== "overview" && activeSection !== "top-sku") && renderFilters()}
           {renderSectionContent()}
         </div>
       </div>

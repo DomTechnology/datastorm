@@ -116,7 +116,7 @@ export const SupplierPerformance = () => {
         </h3>
 
         {supplierData.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-100 overflow-y-scroll">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>

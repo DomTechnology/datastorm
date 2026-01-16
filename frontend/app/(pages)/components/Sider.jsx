@@ -22,7 +22,7 @@ export const Sider = () => {
     { label: "Guideline", section: "overview", icon: LayoutDashboard },
     { label: "Financial", section: "financial", icon: BarChart3 },
     { label: "Map", section: "map", icon: MapPinned },
-    { label: "Sales", section: "sales", icon: LineChart },
+    // { label: "Sales", section: "sales", icon: LineChart },
     { label: "Top SKUs", section: "top-sku", icon: Table2 },
     { label: "Stock Alerts", section: "alerts", icon: BellRing },
     { label: "Analytics Suite", section: "analytics", icon: Layers3 },
@@ -32,7 +32,7 @@ export const Sider = () => {
 
   return (
     <div className="w-64 h-screen bg-[#313642] fixed left-0 top-0 z-50 text-white pt-10">
-      <div className="text-[24px] text-white font-semibold ml-5">
+      <div className="text-[24px] text-white font-semibold text-center">
         Sale Management Dashboard
       </div>
       <div className="flex flex-col gap-6 mt-10 px-5 text-gray-300">
