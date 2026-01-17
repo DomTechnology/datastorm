@@ -20,8 +20,8 @@ export const Sider = () => {
 
   const navItems = [
     { label: "Guideline", section: "overview", icon: LayoutDashboard },
-    { label: "Financial", section: "financial", icon: BarChart3 },
     { label: "Map", section: "map", icon: MapPinned },
+    { label: "Financial", section: "financial", icon: BarChart3 },
     // { label: "Sales", section: "sales", icon: LineChart },
     { label: "Top SKUs", section: "top-sku", icon: Table2 },
     { label: "Stock Alerts", section: "alerts", icon: BellRing },
