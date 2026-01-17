@@ -195,7 +195,7 @@ export const DayOfCover = () => {
         {/* --- Table --- */}
         <div className="overflow-x-auto rounded-xl border border-slate-100 mb-5">
           <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50 text-left text-[12px] uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-2 py-3">No.</th>
                 <th className="px-2 py-3">SKU ID</th>
@@ -219,7 +219,7 @@ export const DayOfCover = () => {
                 <tr key={`${product.sku_id}-${product.store_id}-${index}`} className="hover:bg-slate-50">
                   <td className="px-3 py-3 font-semibold text-slate-900">{index + 1}</td>
                   <td className="px-3 py-3">{product.sku_id ?? "—"}</td>
-                  <td className="px-3 py-3">{product.sku_name ?? "—"}</td>
+                  <td className="px-3 py-3 text-nowrap">{product.sku_name ?? "—"}</td>
                   {/* <td className="px-3 py-3">{product.category ?? "—"}</td> */}
                   {/* <td className="px-3 py-3">{product.brand ?? "—"}</td> */}
                   <td className="px-3 py-3">{product.store_id ?? "—"}</td>
