@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, literal, text
+from sqlalchemy import func, case, literal, text, desc, tuple_
 from .model.sales_fact import SalesFact
 from .utils.db import get_db
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from google import genai
 from upstash_redis.asyncio import Redis
@@ -362,7 +362,7 @@ async def get_top_skus(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -483,7 +483,7 @@ async def get_net_sales_by_location(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -492,47 +492,138 @@ async def get_net_sales_by_location(
     }
 
 @app.get('/store/list')
-def get_store_list(
+async def get_store_list(
     db: Session = Depends(get_db)
 ):
+    cache_name = "store_list"
+
+    cached = await redis_client.get(cache_name)
+    if cached:
+        cached_data = json.loads(cached)
+        return {
+            "source": "redis",
+            "data": cached_data
+        }
+
     stores = db.query(
         SalesFact.store_id,
     ).distinct().all()
 
-    return {
+    result = {
         "data": [s[0] for s in stores if s[0] is not None]
     }
 
-@app.get('/category/list')
-def get_category_list(
+    await redis_client.set(
+        cache_name,
+        json.dumps(result["data"])
+    )
+
+    return {
+        "source": "db",
+        **result
+    }
+
+@app.get('/city/list')
+async def get_city_list(
     db: Session = Depends(get_db)
 ):
+    cache_name = "city_list"
+    cached = await redis_client.get(cache_name)
+    if cached:
+        cached_data = json.loads(cached)
+        return {
+            "source": "redis",
+            "data": cached_data
+        }
+
+    stores = db.query(
+        SalesFact.city,
+    ).distinct().all()
+
+    result = {
+        "data": [s[0] for s in stores if s[0] is not None]
+    }
+
+    await redis_client.set(
+        cache_name,
+        json.dumps(result["data"])
+    )
+
+    return {
+        "source": "db",
+        **result
+    }
+
+@app.get('/category/list')
+async def get_category_list(
+    db: Session = Depends(get_db)
+):
+    cache_name = "category_list"
+
+    cached = await redis_client.get(cache_name)
+    if cached:
+        cached_data = json.loads(cached)
+        return {
+            "source": "redis",
+            "data": cached_data
+        }
+
     categories = db.query(
         SalesFact.category
     ).distinct().all()
 
     result = [c[0] for c in categories if c[0] is not None]
 
-    return {
+    result = {
         "data": result
     }
 
+    await redis_client.set(
+        cache_name,
+        json.dumps(result["data"])
+    )
+
+    return {
+        "source": "db",
+        **result
+    }
+
 @app.get('/brand/list')
-def get_brand_list(
+async def get_brand_list(
     db: Session = Depends(get_db)
 ):
+    cache_name = "brand_list"
+
+    cached = await redis_client.get(cache_name)
+    if cached:
+        cached_data = json.loads(cached)
+        return {
+            "source": "redis",
+            "data": cached_data
+        }
+
     brands = db.query(
         SalesFact.brand
     ).distinct().all()
 
     result = [b[0] for b in brands if b[0] is not None]
 
-    return {
+    result = {
         "data": result
     }
 
+    await redis_client.set(
+        cache_name,
+        json.dumps(result["data"])
+    )
+
+    return {
+        "source": "db",
+        **result
+    }
+
 @app.get('/product/list')
-def get_product_list(
+async def get_product_list(
     category: str = Query(None, description="Filter by category"),
     brand: str = Query(None, description="Filter by brand"),
     db: Session = Depends(get_db)
@@ -554,7 +645,7 @@ def get_product_list(
         for p in products
     ]
 
-    return {
+    return  {
         "data": result
     }
 
@@ -715,7 +806,7 @@ async def get_stock_alerts(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -828,7 +919,7 @@ async def get_revenue_analytics(
         }
     }
 
-    await redis_client.set(cache_key, json.dumps(result), ex=CACHE_TTL)
+    await redis_client.set(cache_key, json.dumps(result),)
     
     return {
         "source": "db",
@@ -908,7 +999,7 @@ async def get_profit_analytics(
         }
     }
     
-    await redis_client.set(cache_key, json.dumps(result), ex=CACHE_TTL)
+    await redis_client.set(cache_key, json.dumps(result),)
 
     return {
         "source": "db",
@@ -980,6 +1071,7 @@ async def suggestion(
     Do not repeat the context back to the user or repeat your flow of thought.
     Give suggestion for optimal sales demand planning and inventory management.
     Do not use any markdown formatting.
+    Make all the information that I gave you (category, brand, store id, sku id) in your suggestions to have bold font.
 
     This is the Forecast Data for 7 days of {request.get("sku_id", "")} at Store {request.get("store_id", "")}:
     - Category: {request.get("category", "")}
@@ -1034,6 +1126,8 @@ async def suggestion(
     Do not repeat the context back to the user or repeat your flow of thought.
     Give suggestions to reduce lead time and improve supply chain efficiency.
     Do not use any markdown formatting.
+    Add bullet points.
+    Make all the information that I gave you (category, brand, store id, sku id) in your suggestions to have bold font.
 
     This is the Forecast Data for 7 days of {request.get("sku_id", "")} at Store {request.get("store_id", "")}:
     - Category: {request.get("category", "")}
@@ -1323,7 +1417,7 @@ async def get_channel_analytics(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -1382,7 +1476,7 @@ async def get_channel_daily_sales(
     await redis_client.set(
         cache_key,
         json.dumps(result, default=str),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -1446,7 +1540,7 @@ async def get_pricing_analytics(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )   
 
     return {
@@ -1506,7 +1600,7 @@ async def get_discount_impact(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )   
 
     return {
@@ -1576,7 +1670,7 @@ async def get_supplier_performance(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )   
 
     return {
@@ -1636,7 +1730,7 @@ async def get_weather_correlation(
     await redis_client.set(
         cache_key,
         json.dumps(result, default=str),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -1697,7 +1791,7 @@ async def get_weather_category_analysis(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )
 
     return {
@@ -1806,10 +1900,172 @@ async def get_inventory_optimization(
     await redis_client.set(
         cache_key,
         json.dumps(result),
-        ex=CACHE_TTL
+    
     )
 
     return {
         "source": "db",
         **result
     }
+
+EPSILON = 0.0001
+N_DAYS = 7
+
+MIN_DATE = datetime(2021, 1, 1).date()
+MAX_DATE = datetime(2023, 12, 31).date()
+
+safety_stock = 2
+preview_days = 7
+
+@app.get("/sku/list")
+async def get_top_skus(
+    db: Session = Depends(get_db),
+    limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    date: str = Query(..., description="YYYY-MM-DD"),
+    store_id: str = Query("all", description="Filter by Store ID"),
+    city: str = Query("all", description="Filter by City")
+):
+    # --- Validate date ---
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    if target_date > MAX_DATE or target_date < MIN_DATE:
+        return {
+            "code": "error",
+            "message": "Data is only available up to 2023-12-31",
+            "data": [],
+            "pagination": {"page": page, "limit": limit, "total_count": 0, "total_pages": 0}
+        }
+
+    # --- Redis cache ---
+    cache_key = f"list_skus:{limit}:{page}:{date}:{store_id}:{city}"
+    cached = await redis_client.get(cache_key)
+    if cached:
+        return {"source": "redis", **json.loads(cached)}
+
+    # --- Lấy tổng units_sold và stock_on_hand theo SKU ---
+    query = db.query(
+        SalesFact.sku_id,
+        SalesFact.sku_name,
+        SalesFact.category,
+        SalesFact.brand,
+        SalesFact.store_id,
+        SalesFact.city,
+        SalesFact.lead_time_days,
+        SalesFact.list_price,
+        func.sum(SalesFact.units_sold).label("total_units_sold"),
+        func.max(SalesFact.stock_on_hand).label("stock_on_hand"),
+    ).filter(
+        SalesFact.date == target_date,
+    ).group_by(
+        SalesFact.sku_id,
+        SalesFact.sku_name,
+        SalesFact.category,
+        SalesFact.brand,
+        SalesFact.store_id,
+        SalesFact.city,
+        SalesFact.lead_time_days,
+        SalesFact.list_price
+    )
+
+    if store_id != "all":
+        query = query.filter(SalesFact.store_id == store_id)
+    if city != "all":
+        query = query.filter(SalesFact.city == city)
+
+    total_count = query.count()
+    skus = query.offset((page - 1) * limit).limit(limit).all()
+
+    if not skus:
+        return {
+            "code": "success",
+            "message": "No SKUs found",
+            "data": [],
+            "pagination": {"page": page, "limit": limit, "total_count": 0, "total_pages": 0}
+        }
+
+    # Tạo list SKU keys để tính avg daily tổng
+    sku_keys = [(r.sku_id, r.category, r.brand, r.store_id, r.city) for r in skus]
+
+    avg_demand_query = (
+        db.query(
+            SalesFact.sku_id,
+            SalesFact.store_id,
+            SalesFact.category,
+            SalesFact.brand,
+            SalesFact.city,
+            (func.sum(SalesFact.units_sold) / N_DAYS).label("avg_daily_demand")
+        )
+        .filter(
+            SalesFact.date > target_date,
+            SalesFact.date <= target_date + timedelta(days=N_DAYS),
+            tuple_(
+                SalesFact.sku_id,
+                SalesFact.category,
+                SalesFact.brand,
+                SalesFact.store_id,
+                SalesFact.city
+            ).in_(sku_keys)
+        )
+        .group_by(
+            SalesFact.sku_id,
+            SalesFact.category,
+            SalesFact.brand,
+            SalesFact.store_id,
+            SalesFact.city
+        )
+        .all()
+    )
+
+    avg_demand_map = {
+        (r.sku_id, r.category, r.brand, r.store_id, r.city): float(r.avg_daily_demand or EPSILON)
+        for r in avg_demand_query
+    }
+
+    result_data = []
+    for r in skus:
+        key = (r.sku_id, r.category, r.brand, r.store_id, r.city)
+        avg_daily = avg_demand_map.get(key, EPSILON)
+        doc = r.stock_on_hand / max(avg_daily, EPSILON)
+
+        result_data.append({
+            "sku_id": r.sku_id,
+            "sku_name": r.sku_name,
+            "category": r.category,
+            "brand": r.brand,
+            "store_id": r.store_id,
+            "city": r.city,
+            "total_units_sold": int(r.total_units_sold or 0),  # sales trong ngày target
+            "stock_on_hand": int(r.stock_on_hand or 0),        # tồn kho tại target_date
+            "avg_daily_demand": round(avg_daily, 2),           # optional nhưng rất nên có
+            "doc": round(doc, 2),
+            "rop": round(
+                max(avg_daily, EPSILON) * (r.lead_time_days + safety_stock + preview_days),
+                2
+            ),
+            "day_until_order": round(
+                doc - (r.lead_time_days + safety_stock + preview_days),
+                2
+            ),
+            "average_daily_sales": round(avg_daily, 2),
+            "lead_time_days": r.lead_time_days,
+            "list_price": round(float(r.list_price or 0), 2),
+        })
+
+    result = {
+        "code": "success",
+        "message": "Top SKUs retrieved successfully",
+        "data": result_data,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total_count": total_count,
+            "total_pages": (total_count + limit - 1) // limit
+        }
+    }
+
+    await redis_client.set(cache_key, json.dumps(result))
+    return {"source": "db", **result}

@@ -34,6 +34,7 @@ import { SubTitle } from "../components/SubTitle";
 import { useGlobalLoading } from "../../context/loadingContext";
 import { Button } from "@/components/ui/button";
 import { TopSKUProduct } from "../components/TopSKUProduct/TopSKUProduct";
+import { DayOfCover } from "../components/DayOfCover/DayOfCover";
 
 const monthList = [
   "1",
@@ -61,6 +62,7 @@ export default function MapPage() {
     "top-sku",
     "alerts",
     "analytics",
+    "doc"
   ];
   const activeSection = validSections.includes(sectionParam)
     ? sectionParam
@@ -346,7 +348,7 @@ export default function MapPage() {
           </section>
         );
 
-      // case "sales":
+        // case "sales":
         return (
           <section className="grid gap-6">
             {scopeBanner}
@@ -462,6 +464,11 @@ export default function MapPage() {
             </div>
           </section>
         );
+
+      case "doc":
+        return (
+          <DayOfCover />
+        )
 
       case "overview":
       default:
@@ -724,8 +731,8 @@ export default function MapPage() {
           <div>
             <p
               className={`${activeSection == "overview"
-                  ? "hidden"
-                  : "text-2xl font-semibold text-slate-900"
+                ? "hidden"
+                : "text-2xl font-semibold text-slate-900"
                 }`}
             >
               {`Dashboard · ${activeSection}`}
@@ -734,7 +741,7 @@ export default function MapPage() {
         </div>
 
         <div className="flex flex-col gap-8">
-          {(activeSection !== "overview" && activeSection !== "top-sku") && renderFilters()}
+          {(activeSection !== "overview" && activeSection !== "top-sku" && activeSection !== "doc") && renderFilters()}
           {renderSectionContent()}
         </div>
       </div>

@@ -25,7 +25,8 @@ export const Sider = () => {
     // { label: "Sales", section: "sales", icon: LineChart },
     { label: "Top SKUs", section: "top-sku", icon: Table2 },
     { label: "Stock Alerts", section: "alerts", icon: BellRing },
-    { label: "Analytics Suite", section: "analytics", icon: Layers3 },
+    { label: "Day of Coverage", section: "doc", icon: BarChart3 },
+    { label: "Advanced Analytics", section: "analytics", icon: Layers3 },
   ];
 
   const linkFor = (section) => ({ pathname: "/", query: { section } });

@@ -1,4 +1,6 @@
 import { Lightbulb } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export const SuggestionBox = ({ suggestion, loading = false }) => {
   return (
@@ -13,9 +15,11 @@ export const SuggestionBox = ({ suggestion, loading = false }) => {
       {loading ? (
         <p className="text-sm text-gray-500">Generating suggestion...</p>
       ) : suggestion ? (
-        <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-line">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+        >
           {suggestion}
-        </p>
+        </ReactMarkdown>
       ) : (
         <p className="text-sm text-gray-400">
           No suggestion available yet.
