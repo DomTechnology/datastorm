@@ -99,7 +99,6 @@ threadpoolctl
 typing_extensions
 tzdata
 ufoLib2
-ufw
 unattended-upgrades
 unicodedata2
 urllib3
